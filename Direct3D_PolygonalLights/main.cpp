@@ -13,6 +13,7 @@ LRESULT CALLBACK window_callback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 
 	return DefWindowProc(hWnd, uMsg, wParam, lParam); // default procedure
 }
+
 HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow) {
 	// Create and register window class
 
@@ -42,7 +43,7 @@ HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow) {
 	RECT rc = { 0, 0, 800, 600 };
 	AdjustWindowRect(&rc, dwStyle, false);
 	g_hWnd = CreateWindow(className, L"DXWindow",
-		WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+		dwStyle,
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		rc.right - rc.left, rc.bottom - rc.top,
 		nullptr, nullptr,
