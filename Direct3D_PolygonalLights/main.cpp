@@ -15,6 +15,9 @@ ComPtr<ID3D11DeviceContext> g_pContext;
 ComPtr<IDXGISwapChain> g_pSwapChain;
 ComPtr<ID3D11RenderTargetView> g_pRenderTarget;
 
+
+#pragma region Windows
+
 LRESULT CALLBACK window_callback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	if (uMsg == WM_DESTROY) {
 		PostQuitMessage(0);
@@ -66,6 +69,92 @@ HRESULT InitWindow(HINSTANCE hInstance, int nCmdShow) {
 	ShowWindow(g_hWnd, nCmdShow);
 
 	return S_OK;
+}
+
+bool PollEvents(MSG* msg) {
+	while (PeekMessage(msg, nullptr, 0, 0, PM_REMOVE)) {
+		TranslateMessage(msg);
+		DispatchMessage(msg);
+
+		if (msg->message == WM_QUIT)
+			return false;
+	}
+
+	return true;
+}
+
+#pragma endregion
+
+
+#pragma region Direct3D
+
+HRESULT CreateDeviceAndSwapChain() {
+	DXGI_SWAP_CHAIN_DESC sd = { 0 };
+	sd.BufferDesc.Width = 0;
+	sd.BufferDesc.Height = 0;
+	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	sd.BufferDesc.RefreshRate.Numerator = 0;
+	sd.BufferDesc.RefreshRate.Denominator = 0;
+	sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+
+	sd.SampleDesc.Count = 1;
+	sd.SampleDesc.Quality = 0;
+
+	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	sd.BufferCount = 1;
+	sd.OutputWindow = g_hWnd;
+	sd.Windowed = TRUE;
+	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	sd.Flags = 0;
+
+	return D3D11CreateDeviceAndSwapChain(
+		nullptr,
+		D3D_DRIVER_TYPE_HARDWARE,
+		nullptr,
+		0,
+		nullptr,
+		0,
+		D3D11_SDK_VERSION,
+		&sd,
+		&g_pSwapChain,
+		&g_pDevice,
+		nullptr,
+		&g_pContext
+	);
+}
+
+HRESULT CreateRenderTargetView() {
+
+	HRESULT result = S_OK;
+
+	ComPtr<ID3D11Resource> pBackBuffer;
+	result = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Resource), &pBackBuffer);
+
+	if (FAILED(result))
+		return result;
+
+	result = g_pDevice->CreateRenderTargetView(
+		pBackBuffer.Get(),
+		nullptr,
+		&g_pRenderTarget
+	);
+
+	return result;
+}
+
+
+HRESULT InitDirect3D() {
+	HRESULT result = S_OK;
+
+	result = CreateDeviceAndSwapChain();
+	
+	if (FAILED(result))
+		return result;
+
+	result = CreateRenderTargetView();
+
+	return result;
 }
 
 void DrawTriangle() {
@@ -156,63 +245,9 @@ void DrawTriangle() {
 	g_pContext->Draw(3u, 0u);
 }
 
-HRESULT InitDirect3D() {
-	DXGI_SWAP_CHAIN_DESC sd = { 0 };
-	sd.BufferDesc.Width = 0;
-	sd.BufferDesc.Height = 0;
-	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	sd.BufferDesc.RefreshRate.Numerator = 0;
-	sd.BufferDesc.RefreshRate.Denominator = 0;
-	sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+#pragma endregion
 
-	sd.SampleDesc.Count = 1;
-	sd.SampleDesc.Quality = 0;
 
-	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.BufferCount = 1;
-	sd.OutputWindow = g_hWnd;
-	sd.Windowed = TRUE;
-	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	sd.Flags = 0;
-
-	HRESULT result = D3D11CreateDeviceAndSwapChain(
-		nullptr,
-		D3D_DRIVER_TYPE_HARDWARE,
-		nullptr,
-		0,
-		nullptr,
-		0,
-		D3D11_SDK_VERSION,
-		&sd,
-		&g_pSwapChain,
-		&g_pDevice,
-		nullptr,
-		&g_pContext
-	);
-
-	ComPtr<ID3D11Resource> pBackBuffer;
-	result = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Resource), &pBackBuffer);
-	result = g_pDevice->CreateRenderTargetView(
-		pBackBuffer.Get(),
-		nullptr,
-		&g_pRenderTarget
-	);
-
-	return S_OK;
-}
-
-bool PollEvents(MSG* msg) {
-	while (PeekMessage(msg, nullptr, 0, 0, PM_REMOVE)) {
-		TranslateMessage(msg);
-		DispatchMessage(msg);
-
-		if (msg->message == WM_QUIT)
-			return false;
-	}
-
-	return true;
-}
 
 int WINAPI wWinMain(
 	_In_ HINSTANCE hInstance,
