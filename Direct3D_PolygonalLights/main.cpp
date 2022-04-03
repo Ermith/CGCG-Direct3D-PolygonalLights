@@ -4,6 +4,8 @@
 #include <dxgiformat.h>
 #include <wrl.h>
 #include <d3dcompiler.h>
+#include <vector>
+
 
 namespace wrl = Microsoft::WRL;
 using wrl::ComPtr;
@@ -14,6 +16,12 @@ ComPtr<ID3D11Device> g_pDevice;
 ComPtr<ID3D11DeviceContext> g_pContext;
 ComPtr<IDXGISwapChain> g_pSwapChain;
 ComPtr<ID3D11RenderTargetView> g_pRenderTarget;
+
+
+struct Vertex {
+	float x;
+	float y;
+};
 
 
 #pragma region Windows
@@ -140,38 +148,87 @@ HRESULT CreateRenderTargetView() {
 		&g_pRenderTarget
 	);
 
+	// bind render target
+	g_pContext->OMSetRenderTargets(1u, g_pRenderTarget.GetAddressOf(), nullptr);
+
 	return result;
 }
 
+HRESULT CreateShaders(ComPtr<ID3DBlob>& blobBuffer) {
+	HRESULT result = S_OK;
+
+	// create pixel shader
+	ComPtr<ID3D11PixelShader> pPixelShader;
+	D3DReadFileToBlob(L"PixelShader.cso", &blobBuffer);
+	g_pDevice->CreatePixelShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pPixelShader);
+	g_pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
+
+	// create vertex shader
+	wrl::ComPtr<ID3D11VertexShader> pVertexShader;
+	D3DReadFileToBlob(L"VertexShader.cso", &blobBuffer);
+	g_pDevice->CreateVertexShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pVertexShader);
+	g_pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
+
+	return result;
+}
+
+HRESULT CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer) {
+	// input (vertex) layout (2d position only)
+	ComPtr<ID3D11InputLayout> pInputLayout;
+	const D3D11_INPUT_ELEMENT_DESC ied[] =
+	{
+		{ "Position",0,DXGI_FORMAT_R32G32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0 },
+	};
+	HRESULT result = g_pDevice->CreateInputLayout(
+		ied, (UINT)(sizeof(ied) / sizeof(ied[0])),
+		blobBuffer->GetBufferPointer(),
+		blobBuffer->GetBufferSize(),
+		&pInputLayout
+	);
+
+	if (FAILED(result)) return result;
+
+	// bind vertex layout
+	g_pContext->IASetInputLayout(pInputLayout.Get());
+	// Set primitive topology to triangle list (groups of 3 vertices)
+	g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	return S_OK;
+}
+
+void SetViewPort() {
+	D3D11_VIEWPORT vp;
+	vp.Width = 800;
+	vp.Height = 600;
+	vp.MinDepth = 0;
+	vp.MaxDepth = 1;
+	vp.TopLeftX = 0;
+	vp.TopLeftY = 0;
+	g_pContext->RSSetViewports(1u, &vp);
+}
 
 HRESULT InitDirect3D() {
 	HRESULT result = S_OK;
 
 	result = CreateDeviceAndSwapChain();
-	
-	if (FAILED(result))
-		return result;
+	if (FAILED(result)) return result;
 
 	result = CreateRenderTargetView();
+	if (FAILED(result)) return result;
+
+	ComPtr<ID3DBlob> vertexShader;
+	result = CreateShaders(vertexShader);
+	if (FAILED(result)) return result;
+
+	CreateLayoutAndTopology(vertexShader);
+
+	SetViewPort();
 
 	return result;
 }
 
-void DrawTriangle() {
-	HRESULT hr;
-
-	struct Vertex {
-		float x;
-		float y;
-	};
-
-	// create vertex buffer (1 2d triangle at center of screen)
-	const Vertex vertices[] =
-	{
-		{ 0.0f,0.5f },
-		{ 0.5f,-0.5f },
-		{ -0.5f,-0.5f },
-	};
+void DrawTriangles(std::vector<Vertex>& vBuffer) {
+	const Vertex* vertices = vBuffer.data();
 
 	ComPtr<ID3D11Buffer> pVertexBuffer;
 	D3D11_BUFFER_DESC bd = {};
@@ -179,7 +236,7 @@ void DrawTriangle() {
 	bd.Usage = D3D11_USAGE_DEFAULT;
 	bd.CPUAccessFlags = 0u;
 	bd.MiscFlags = 0u;
-	bd.ByteWidth = sizeof(vertices);
+	bd.ByteWidth = sizeof(Vertex) * vBuffer.size();
 	bd.StructureByteStride = sizeof(Vertex);
 	D3D11_SUBRESOURCE_DATA sd = {};
 	sd.pSysMem = vertices;
@@ -190,59 +247,17 @@ void DrawTriangle() {
 	const UINT offset = 0u;
 	g_pContext->IASetVertexBuffers(0u, 1u, pVertexBuffer.GetAddressOf(), &stride, &offset);
 
-	// create pixel shader
-	ComPtr<ID3D11PixelShader> pPixelShader;
-	ComPtr<ID3DBlob> pBlob;
-	D3DReadFileToBlob(L"PixelShader.cso", &pBlob);
-	g_pDevice->CreatePixelShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, &pPixelShader);
 
-	// bind pixel shader
-	g_pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
-
-
-
-	// create vertex shader
-	wrl::ComPtr<ID3D11VertexShader> pVertexShader;
-	D3DReadFileToBlob(L"VertexShader.cso", &pBlob);
-	g_pDevice->CreateVertexShader(pBlob->GetBufferPointer(), pBlob->GetBufferSize(), nullptr, &pVertexShader);
-
-	// bind vertex shader
-	g_pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
-
-	// input (vertex) layout (2d position only)
-	ComPtr<ID3D11InputLayout> pInputLayout;
-	const D3D11_INPUT_ELEMENT_DESC ied[] =
-	{
-		{ "Position",0,DXGI_FORMAT_R32G32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0 },
-	};
-	g_pDevice->CreateInputLayout(
-		ied, (UINT)(sizeof(ied) / sizeof(ied[0])),
-		pBlob->GetBufferPointer(),
-		pBlob->GetBufferSize(),
-		&pInputLayout
-	);
-
-	// bind vertex layout
-	g_pContext->IASetInputLayout(pInputLayout.Get());
-
-
-	// bind render target
-	g_pContext->OMSetRenderTargets(1u, g_pRenderTarget.GetAddressOf(), nullptr);
-
-
-	// Set primitive topology to triangle list (groups of 3 vertices)
-	g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// configure viewport
-	D3D11_VIEWPORT vp;
-	vp.Width = 800;
-	vp.Height = 600;
-	vp.MinDepth = 0;
-	vp.MaxDepth = 1;
-	vp.TopLeftX = 0;
-	vp.TopLeftY = 0;
-	g_pContext->RSSetViewports(1u, &vp);
 	g_pContext->Draw(3u, 0u);
+	vBuffer.clear();
+}
+
+void CreateTriangle(std::vector<Vertex>& vertices) {
+	// create vertex buffer (1 2d triangle at center of screen)
+	
+	vertices.push_back({ 0.0f,0.5f });
+	vertices.push_back({ 0.5f,-0.5f });
+	vertices.push_back({ -0.5f,-0.5f });
 }
 
 #pragma endregion
@@ -270,7 +285,13 @@ int WINAPI wWinMain(
 		// DO STUFF
 		g_pContext->ClearRenderTargetView(g_pRenderTarget.Get(), DirectX::Colors::Blue);
 
-		DrawTriangle();
+		std::vector<Vertex> vBuffer;
+
+		// Fill the vertex buffer
+		CreateTriangle(vBuffer);
+
+
+		DrawTriangles(vBuffer);
 
 		// Swap buffers
 		g_pSwapChain->Present(1u, 0u);
