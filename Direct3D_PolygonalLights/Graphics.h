@@ -22,6 +22,11 @@ using std::vector;
 struct Vertex {
 	float x;
 	float y;
+	float z;
+
+	float r;
+	float g;
+	float b;
 };
 
 class Graphics {
@@ -53,9 +58,9 @@ public:
 		_pContext->Draw(3u, 0u);
 	}
 	void FillTriangle(vector<Vertex>& vBuffer) {
-		vBuffer.push_back({ 0.0f,0.5f });
-		vBuffer.push_back({ 0.5f,-0.5f });
-		vBuffer.push_back({ -0.5f,-0.5f });
+		vBuffer.push_back({ 0.0f,0.5f, 0.0f,  1.0f, 0.0f, 0.0f});
+		vBuffer.push_back({ 0.5f,-0.5f, 0.0f,  0.0f, 1.0f, 0.0f});
+		vBuffer.push_back({ -0.5f,-0.5f, 0.0f,  0.0f, 0.0f, 1.0f});
 	}
 private:
 	ComPtr<ID3D11Device> _pDevice;
@@ -141,8 +146,10 @@ private:
 		ComPtr<ID3D11InputLayout> pInputLayout;
 		const D3D11_INPUT_ELEMENT_DESC ied[] =
 		{
-			{ "Position",0,DXGI_FORMAT_R32G32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0 },
+			{ "Position",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0 },
+			{ "Color",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12u,D3D11_INPUT_PER_VERTEX_DATA,0 },
 		};
+
 		CHECKED(_pDevice->CreateInputLayout(
 			ied, (UINT)(sizeof(ied) / sizeof(ied[0])),
 			blobBuffer->GetBufferPointer(),
