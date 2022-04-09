@@ -34,33 +34,64 @@ public:
 	Graphics(HWND hWnd, FLOAT width, FLOAT height);
 	void Clear(const FLOAT colorRGBA[4]);
 	void SwapBuffers();
-	void DrawTriangles(const vector<Vertex>& vBuffer) {
-		const Vertex* vertices = vBuffer.data();
+	void DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigned short>& iBuffer) {
 
-		ComPtr<ID3D11Buffer> pVertexBuffer;
-		D3D11_BUFFER_DESC bd = {};
-		bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-		bd.Usage = D3D11_USAGE_DEFAULT;
-		bd.CPUAccessFlags = 0u;
-		bd.MiscFlags = 0u;
-		bd.ByteWidth = sizeof(Vertex) * vBuffer.size();
-		bd.StructureByteStride = sizeof(Vertex);
-		D3D11_SUBRESOURCE_DATA sd = {};
-		sd.pSysMem = vertices;
-		_pDevice->CreateBuffer(&bd, &sd, &pVertexBuffer);
+		// Bind Vertex Buffer
+		//========================================
+		{
+			ComPtr<ID3D11Buffer> pVertexBuffer;
 
-		// Bind vertex buffer to pipeline
-		const UINT stride = sizeof(Vertex);
-		const UINT offset = 0u;
-		_pContext->IASetVertexBuffers(0u, 1u, pVertexBuffer.GetAddressOf(), &stride, &offset);
+			D3D11_BUFFER_DESC bd = {};
+			bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+			bd.Usage = D3D11_USAGE_DEFAULT;
+			bd.CPUAccessFlags = 0u;
+			bd.MiscFlags = 0u;
+			bd.ByteWidth = sizeof(Vertex) * vBuffer.size();
+			bd.StructureByteStride = sizeof(Vertex);
 
+			D3D11_SUBRESOURCE_DATA sd = {};
+			sd.pSysMem = vBuffer.data();
 
-		_pContext->Draw(3u, 0u);
+			_pDevice->CreateBuffer(&bd, &sd, &pVertexBuffer);
+			const UINT stride = sizeof(Vertex);
+			const UINT offset = 0u;
+			_pContext->IASetVertexBuffers(0u, 1u, pVertexBuffer.GetAddressOf(), &stride, &offset);
+		}
+
+		// Bind Index Buffer
+		//========================================
+		{
+			ComPtr<ID3D11Buffer> pIndexBuffer;
+
+			D3D11_BUFFER_DESC bd = {};
+			bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+			bd.Usage = D3D11_USAGE_DEFAULT;
+			bd.CPUAccessFlags = 0u;
+			bd.MiscFlags = 0u;
+			bd.ByteWidth = sizeof(unsigned short) * vBuffer.size();
+			bd.StructureByteStride = sizeof(unsigned short);
+
+			D3D11_SUBRESOURCE_DATA sd = {};
+			sd.pSysMem = iBuffer.data();
+
+			_pDevice->CreateBuffer(&bd, &sd, &pIndexBuffer);
+			_pContext->IASetIndexBuffer(pIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0u);
+		}
+
+		_pContext->DrawIndexed(iBuffer.size(), 0u, 0u);
 	}
-	void FillTriangle(vector<Vertex>& vBuffer) {
+	void FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
+
+		unsigned short offset = vBuffer.size();
+
 		vBuffer.push_back({ 0.0f,0.5f, 0.0f,  1.0f, 0.0f, 0.0f});
 		vBuffer.push_back({ 0.5f,-0.5f, 0.0f,  0.0f, 1.0f, 0.0f});
 		vBuffer.push_back({ -0.5f,-0.5f, 0.0f,  0.0f, 0.0f, 1.0f});
+
+
+		iBuffer.push_back(offset + 0u);
+		iBuffer.push_back(offset + 1u);
+		iBuffer.push_back(offset + 2u);
 	}
 private:
 	ComPtr<ID3D11Device> _pDevice;

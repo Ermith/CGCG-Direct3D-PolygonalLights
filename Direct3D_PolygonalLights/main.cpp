@@ -28,8 +28,9 @@ int WINAPI wWinMain(
 			gr.Clear(DirectX::Colors::Gray);
 
 			vector<Vertex> vBuffer;
-			gr.FillTriangle(vBuffer);
-			gr.DrawTriangles(vBuffer);
+			vector<unsigned short> iBuffer;
+			gr.FillTriangle(vBuffer, iBuffer);
+			gr.DrawTriangles(vBuffer, iBuffer);
 			vBuffer.clear();
 
 			gr.SwapBuffers();
