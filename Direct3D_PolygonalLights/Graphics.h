@@ -38,11 +38,14 @@ public:
 	void SwapBuffers();
 	void DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigned short>& iBuffer);
 	void FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
+	void FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
 private:
 	ComPtr<ID3D11Device> _pDevice;
 	ComPtr<ID3D11DeviceContext> _pContext;
 	ComPtr<IDXGISwapChain> _pSwapChain;
 	ComPtr<ID3D11RenderTargetView> _pRTView;
+	ComPtr<ID3D11Buffer> _pTransform;
+	FLOAT angle;
 	FLOAT _width;
 	FLOAT _height;
 
@@ -59,13 +62,17 @@ private:
 		graphicsException(const char* message) : _message(message) {}
 		const char* what() const throw () { return _message; }
 	};
+
+	struct ConstantBuffer {
+		dx::XMMATRIX transform;
+	};
 };
 
 
 #pragma region PublicMethods
 
 Graphics::Graphics(HWND hWnd, FLOAT width, FLOAT height)
-	: _width(width), _height(height)
+	: _width(width), _height(height), angle(0.0f)
 {
 	CreateDeviceAndSwapChain(hWnd);
 	CreateRenderTargetView();
@@ -127,6 +134,31 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 		_pContext->IASetIndexBuffer(pIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0u);
 	}
 
+	// Update Constant Buffer
+	//========================================
+	{
+		angle += 0.01f;
+		const ConstantBuffer cb = {
+			dx::XMMatrixTranspose(
+				dx::XMMatrixRotationZ(angle) *
+				dx::XMMatrixScaling(_height / _width, 1.0f, 1.0f)
+			)
+		};
+
+		// Update the constant buffer.
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		_pContext->Map(
+			_pTransform.Get(),
+			0,
+			D3D11_MAP_WRITE_DISCARD,
+			0,
+			&mappedResource
+		);
+		memcpy(mappedResource.pData, &cb,
+			sizeof(cb));
+		_pContext->Unmap(_pTransform.Get(), 0);
+	}
+
 	_pContext->DrawIndexed(iBuffer.size(), 0u, 0u);
 }
 
@@ -142,6 +174,10 @@ void Graphics::FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBu
 	iBuffer.push_back(offset + 0u);
 	iBuffer.push_back(offset + 1u);
 	iBuffer.push_back(offset + 2u);
+}
+
+void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
+
 }
 
 #pragma endregion
@@ -215,19 +251,12 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 
 	// bind transformation matrix to vertex shader
 	//===============================================
-	struct ConstantBuffer {
-		dx::XMMATRIX transform;
-	};
-
 	const ConstantBuffer cb = {
 		dx::XMMatrixTranspose(
-			dx::XMMatrixRotationZ(3.14159f) *
+			dx::XMMatrixRotationZ(angle) *
 			dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
 		)
 	};
-
-
-	ComPtr<ID3D11Buffer> pConstantBuffer;
 
 	D3D11_BUFFER_DESC bd = {};
 	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -240,8 +269,8 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 	D3D11_SUBRESOURCE_DATA sd = {};
 	sd.pSysMem = &cb;
 
-	_pDevice->CreateBuffer(&bd, &sd, &pConstantBuffer);
-	_pContext->VSSetConstantBuffers(0u, 1u, pConstantBuffer.GetAddressOf());
+	_pDevice->CreateBuffer(&bd, &sd, &_pTransform);
+	_pContext->VSSetConstantBuffers(0u, 1u, _pTransform.GetAddressOf());
 }
 
 void Graphics::CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer) {
