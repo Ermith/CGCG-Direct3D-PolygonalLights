@@ -127,6 +127,7 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 
 	_pContext->DrawIndexed(iBuffer.size(), 0u, 0u);
 }
+
 void Graphics::FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
 
 	unsigned short offset = vBuffer.size();
@@ -198,6 +199,7 @@ void Graphics::CreateRenderTargetView() {
 }
 
 void Graphics::LoadShaders(ComPtr<ID3DBlob>& blobBuffer) {
+	// create pixel shader
 	ComPtr<ID3D11PixelShader> pPixelShader;
 	CHECKED(D3DReadFileToBlob(L"PixelShader.cso", &blobBuffer), "Reading PShader fucked up");
 	CHECKED(_pDevice->CreatePixelShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pPixelShader), "PShader creation fucked up");
@@ -208,6 +210,37 @@ void Graphics::LoadShaders(ComPtr<ID3DBlob>& blobBuffer) {
 	CHECKED(D3DReadFileToBlob(L"VertexShader.cso", &blobBuffer), "Reading VSHader fucked up");
 	CHECKED(_pDevice->CreateVertexShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pVertexShader), "VShader creation fucked up");
 	_pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
+
+	// bind transformation matrix to vertex shader
+	//===============================================
+	struct ConstantBuffer {
+		float element[4][4];
+	};
+
+	const ConstantBuffer cb = {
+		2.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 2.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
+
+	ComPtr<ID3D11Buffer> pConstantBuffer;
+
+	D3D11_BUFFER_DESC bd = {};
+	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	bd.Usage = D3D11_USAGE_DYNAMIC;
+	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	bd.MiscFlags = 0u;
+	bd.ByteWidth = sizeof(ConstantBuffer);
+	bd.StructureByteStride = 0u;
+
+	D3D11_SUBRESOURCE_DATA sd = {};
+	sd.pSysMem = &cb;
+
+	_pDevice->CreateBuffer(&bd, &sd, &pConstantBuffer);
+	_pContext->VSSetConstantBuffers(0u, 1u, pConstantBuffer.GetAddressOf());
+
 }
 
 void Graphics::CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer) {

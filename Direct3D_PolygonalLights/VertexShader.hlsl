@@ -3,10 +3,14 @@ struct VSOut {
 	float3 color : Color;
 };
 
+cbuffer CBuf {
+	matrix transform;
+};
+
 VSOut main(float3 pos : Position, float3 col : Color)
 {
 	VSOut o;
-	o.position = float4(pos, 1);
+	o.position = mul(float4(pos, 1), transform);
 	o.color = col;
 	return o;
 }
