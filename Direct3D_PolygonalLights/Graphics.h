@@ -2,9 +2,10 @@
 
 #include <d3d11_1.h>
 #include <dxgiformat.h>
-#include <directxcolors.h>
-#include <wrl.h>
 #include <d3dcompiler.h>
+#include <directxcolors.h>
+#include <DirectXMath.h>
+#include <wrl.h>
 #include <exception>
 #include <Windows.h>
 #include <vector>
@@ -14,6 +15,7 @@
 
 #define CHECKED(expr, message) if(FAILED(expr)) throw graphicsException(message);
 
+namespace dx = DirectX;
 using Microsoft::WRL::ComPtr;
 using std::exception;
 using std::vector;
@@ -46,7 +48,7 @@ private:
 
 	void CreateDeviceAndSwapChain(HWND hWnd);
 	void CreateRenderTargetView();
-	void LoadShaders(ComPtr<ID3DBlob>& blobBuffer);
+	void BindShaders(ComPtr<ID3DBlob>& blobBuffer);
 	void CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer);
 	void SetViewPort();
 
@@ -68,7 +70,7 @@ Graphics::Graphics(HWND hWnd, FLOAT width, FLOAT height)
 	CreateDeviceAndSwapChain(hWnd);
 	CreateRenderTargetView();
 	ComPtr<ID3DBlob> vertexShader;
-	LoadShaders(vertexShader);
+	BindShaders(vertexShader);
 	CreateLayoutAndTopology(vertexShader);
 	SetViewPort();
 }
@@ -198,7 +200,7 @@ void Graphics::CreateRenderTargetView() {
 	_pContext->OMSetRenderTargets(1u, _pRTView.GetAddressOf(), nullptr);
 }
 
-void Graphics::LoadShaders(ComPtr<ID3DBlob>& blobBuffer) {
+void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 	// create pixel shader
 	ComPtr<ID3D11PixelShader> pPixelShader;
 	CHECKED(D3DReadFileToBlob(L"PixelShader.cso", &blobBuffer), "Reading PShader fucked up");
@@ -214,14 +216,14 @@ void Graphics::LoadShaders(ComPtr<ID3DBlob>& blobBuffer) {
 	// bind transformation matrix to vertex shader
 	//===============================================
 	struct ConstantBuffer {
-		float element[4][4];
+		dx::XMMATRIX transform;
 	};
 
 	const ConstantBuffer cb = {
-		2.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 2.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f
+		dx::XMMatrixTranspose(
+			dx::XMMatrixRotationZ(3.14159f) *
+			dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
+		)
 	};
 
 
@@ -240,7 +242,6 @@ void Graphics::LoadShaders(ComPtr<ID3DBlob>& blobBuffer) {
 
 	_pDevice->CreateBuffer(&bd, &sd, &pConstantBuffer);
 	_pContext->VSSetConstantBuffers(0u, 1u, pConstantBuffer.GetAddressOf());
-
 }
 
 void Graphics::CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer) {
