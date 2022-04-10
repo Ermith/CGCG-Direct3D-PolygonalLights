@@ -5,6 +5,19 @@
 #define WIDTH 800
 #define HEIGHT 600
 
+dx::XMFLOAT3 cameraPosition = {-4, 1, -4};
+dx::XMFLOAT3 cameraDir = {0, 0, 1};
+
+
+LRESULT CALLBACK window_callback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	if (uMsg == WM_DESTROY) {
+		PostQuitMessage(0);
+		return 0;
+	}
+
+	return DefWindowProc(hWnd, uMsg, wParam, lParam); // default procedure
+}
+
 int WINAPI wWinMain(
 	_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -15,7 +28,7 @@ int WINAPI wWinMain(
 	UNREFERENCED_PARAMETER(lpCmdLine);
 
 	try {
-		Window wnd(hInstance, nCmdShow, WIDTH, HEIGHT);
+		Window wnd(hInstance, nCmdShow, WIDTH, HEIGHT, window_callback);
 		Graphics gr(wnd.GetHandle(), WIDTH, HEIGHT);
 
 
@@ -31,7 +44,8 @@ int WINAPI wWinMain(
 			vector<unsigned short> iBuffer;
 			gr.FillCube(vBuffer, iBuffer);
 			//gr.FillTriangle(vBuffer, iBuffer);
-			gr.DrawTriangles(vBuffer, iBuffer);
+			cameraPosition.x += 0.01f;
+			gr.DrawTriangles(vBuffer, iBuffer, cameraPosition, cameraDir);
 			vBuffer.clear();
 			iBuffer.clear();
 

@@ -36,7 +36,7 @@ public:
 	Graphics(HWND hWnd, FLOAT width, FLOAT height);
 	void Clear(const FLOAT colorRGBA[4]);
 	void SwapBuffers();
-	void DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigned short>& iBuffer);
+	void DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir);
 	void FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
 	void FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
 private:
@@ -45,9 +45,9 @@ private:
 	ComPtr<IDXGISwapChain> _pSwapChain;
 	ComPtr<ID3D11RenderTargetView> _pRTView;
 	ComPtr<ID3D11Buffer> _pTransform;
-	FLOAT angle;
 	FLOAT _width;
 	FLOAT _height;
+	float angle = 0.0f;
 
 	void CreateDeviceAndSwapChain(HWND hWnd);
 	void CreateRenderTargetView();
@@ -72,7 +72,7 @@ private:
 #pragma region PublicMethods
 
 Graphics::Graphics(HWND hWnd, FLOAT width, FLOAT height)
-	: _width(width), _height(height), angle(0.0f)
+	: _width(width), _height(height)
 {
 	CreateDeviceAndSwapChain(hWnd);
 	CreateRenderTargetView();
@@ -90,7 +90,7 @@ void Graphics::SwapBuffers() {
 	_pSwapChain->Present(1u, 0u);
 }
 
-void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigned short>& iBuffer) {
+void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir) {
 
 	// Bind Vertex Buffer
 	//========================================
@@ -140,10 +140,11 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 		angle += 0.01f;
 		const ConstantBuffer cb = {
 			dx::XMMatrixTranspose(
-				dx::XMMatrixRotationZ(angle) *
-				dx::XMMatrixRotationX(angle) *
-				dx::XMMatrixTranslation(0.0f, 0.0f, 4.0f) *
-				dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 10.0f)
+				//dx::XMMatrixRotationY(angle) *
+				//dx::XMMatrixRotationX(angle) *
+				dx::XMMatrixTranslation(0,0,4) *
+				dx::XMMatrixLookToLH(dx::XMLoadFloat3(&cameraPos), dx::XMLoadFloat3(&cameraDir), {0,-1,0}) *
+				dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 500.0f)
 			)
 		};
 
@@ -275,7 +276,6 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 	//===============================================
 	const ConstantBuffer cb = {
 		dx::XMMatrixTranspose(
-			dx::XMMatrixRotationZ(angle) *
 			dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
 		)
 	};

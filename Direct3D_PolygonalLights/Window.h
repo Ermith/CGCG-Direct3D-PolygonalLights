@@ -10,7 +10,7 @@ using std::nullopt;
 
 class Window {
 public:
-	Window(HINSTANCE hInstance, int nCmdShow, LONG width, LONG height, LPCWSTR windowName = L"DXWindow", LPCWSTR className = L"DXWindow");
+	Window(HINSTANCE hInstance, int nCmdShow, LONG width, LONG height, WNDPROC proc, LPCWSTR windowName = L"DXWindow", LPCWSTR className = L"DXWindow");
 	optional<WPARAM> PollEvents();
 	HWND GetHandle() { return _hWnd; }
 private:
@@ -29,19 +29,11 @@ private:
 	};
 };
 
-LRESULT CALLBACK window_callback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-	if (uMsg == WM_DESTROY) {
-		PostQuitMessage(0);
-		return 0;
-	}
-
-	return DefWindowProc(hWnd, uMsg, wParam, lParam); // default procedure
-}
-
 Window::Window(
 	HINSTANCE hInstance,
 	int nCmdShow,
 	LONG width, LONG height,
+	WNDPROC proc,
 	LPCWSTR windowName,
 	LPCWSTR className
 ) :
@@ -54,7 +46,7 @@ Window::Window(
 	wc.lpszClassName = className;
 	wc.hInstance = hInstance;
 	wc.cbSize = sizeof(WNDCLASSEX);
-	wc.lpfnWndProc = window_callback;
+	wc.lpfnWndProc = proc;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
 
 	wc.cbClsExtra = 0;
