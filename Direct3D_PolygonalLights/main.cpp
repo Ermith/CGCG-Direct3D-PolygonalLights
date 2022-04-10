@@ -9,7 +9,24 @@ dx::XMFLOAT3 cameraPosition = {-4, 1, -4};
 dx::XMFLOAT3 cameraDir = {0, 0, 1};
 
 
+class Keyboard {
+private:
+	static bool keys[255];
+public:
+	static void PressKey(char key) { keys[key] = true; }
+	static void ReleaseKey(char key) { keys[key] = false; }
+	static bool IsPressed(char key) { return keys[key]; }
+};
+
+bool Keyboard::keys[255];
+
 LRESULT CALLBACK window_callback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	if (uMsg == WM_KEYDOWN)
+		Keyboard::PressKey(wParam);
+
+	if (uMsg == WM_KEYUP)
+		Keyboard::ReleaseKey(wParam);
+
 	if (uMsg == WM_DESTROY) {
 		PostQuitMessage(0);
 		return 0;
@@ -37,19 +54,27 @@ int WINAPI wWinMain(
 			if (auto wParam = wnd.PollEvents())
 				return (int)wParam.value();
 
-			// Do stuff
-			gr.Clear(DirectX::Colors::Gray);
+			// Update
+			{
+				if (Keyboard::IsPressed('W')) cameraPosition.y += 0.1f;
+				if (Keyboard::IsPressed('A')) cameraPosition.x -= 0.1f;
+				if (Keyboard::IsPressed('S')) cameraPosition.y -= 0.1f;
+				if (Keyboard::IsPressed('D')) cameraPosition.x += 0.1f;
+			}
 
-			vector<Vertex> vBuffer;
-			vector<unsigned short> iBuffer;
-			gr.FillCube(vBuffer, iBuffer);
-			//gr.FillTriangle(vBuffer, iBuffer);
-			cameraPosition.x += 0.01f;
-			gr.DrawTriangles(vBuffer, iBuffer, cameraPosition, cameraDir);
-			vBuffer.clear();
-			iBuffer.clear();
+			// Render
+			{
+				gr.Clear(DirectX::Colors::Gray);
 
-			gr.SwapBuffers();
+				vector<Vertex> vBuffer;
+				vector<unsigned short> iBuffer;
+				gr.FillCube(vBuffer, iBuffer);
+				gr.DrawTriangles(vBuffer, iBuffer, cameraPosition, cameraDir);
+				vBuffer.clear();
+				iBuffer.clear();
+
+				gr.SwapBuffers();
+			}
 		}
 	}
 	catch (...) {
