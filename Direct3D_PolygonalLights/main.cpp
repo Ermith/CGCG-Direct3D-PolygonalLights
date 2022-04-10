@@ -29,9 +29,11 @@ int WINAPI wWinMain(
 
 			vector<Vertex> vBuffer;
 			vector<unsigned short> iBuffer;
-			gr.FillTriangle(vBuffer, iBuffer);
+			gr.FillCube(vBuffer, iBuffer);
+			//gr.FillTriangle(vBuffer, iBuffer);
 			gr.DrawTriangles(vBuffer, iBuffer);
 			vBuffer.clear();
+			iBuffer.clear();
 
 			gr.SwapBuffers();
 		}

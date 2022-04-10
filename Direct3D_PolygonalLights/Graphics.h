@@ -124,7 +124,7 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 		bd.Usage = D3D11_USAGE_DEFAULT;
 		bd.CPUAccessFlags = 0u;
 		bd.MiscFlags = 0u;
-		bd.ByteWidth = sizeof(unsigned short) * vBuffer.size();
+		bd.ByteWidth = sizeof(unsigned short) * iBuffer.size();
 		bd.StructureByteStride = sizeof(unsigned short);
 
 		D3D11_SUBRESOURCE_DATA sd = {};
@@ -141,7 +141,9 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 		const ConstantBuffer cb = {
 			dx::XMMatrixTranspose(
 				dx::XMMatrixRotationZ(angle) *
-				dx::XMMatrixScaling(_height / _width, 1.0f, 1.0f)
+				dx::XMMatrixRotationX(angle) *
+				dx::XMMatrixTranslation(0.0f, 0.0f, 4.0f) *
+				dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 10.0f)
 			)
 		};
 
@@ -166,9 +168,9 @@ void Graphics::FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBu
 
 	unsigned short offset = vBuffer.size();
 
-	vBuffer.push_back({ 0.0f,0.5f, 0.0f,  1.0f, 0.0f, 0.0f });
-	vBuffer.push_back({ 0.5f,-0.5f, 0.0f,  0.0f, 1.0f, 0.0f });
-	vBuffer.push_back({ -0.5f,-0.5f, 0.0f,  0.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ 0.0f,0.5f, 0.0f });// , 1.0f, 0.0f, 0.0f
+	vBuffer.push_back({ 0.5f,-0.5f, 0.0f });//  0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -0.5f,-0.5f, 0.0f });//  0.0f, 0.0f, 1.0f });
 
 
 	iBuffer.push_back(offset + 0u);
@@ -177,7 +179,28 @@ void Graphics::FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBu
 }
 
 void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
+	unsigned short offset = vBuffer.size();
 
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  0.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	1.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 1.0f });
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 0.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	1.0f, 1.0f, 1.0f });
+
+	const unsigned short indices[] = {
+		0,2,1, 2,3,1,
+		1,3,5, 3,7,5,
+		2,6,3, 3,6,7,
+		4,5,7, 4,7,6,
+		0,4,2, 2,4,6,
+		0,1,4, 1,5,4
+	};
+
+	for (unsigned short index : indices)
+		iBuffer.push_back(offset + index);
 }
 
 #pragma endregion
