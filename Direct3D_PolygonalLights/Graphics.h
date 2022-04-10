@@ -168,10 +168,9 @@ void Graphics::FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBu
 
 	unsigned short offset = vBuffer.size();
 
-	vBuffer.push_back({ 0.0f,0.5f, 0.0f });// , 1.0f, 0.0f, 0.0f
-	vBuffer.push_back({ 0.5f,-0.5f, 0.0f });//  0.0f, 1.0f, 0.0f });
-	vBuffer.push_back({ -0.5f,-0.5f, 0.0f });//  0.0f, 0.0f, 1.0f });
-
+	vBuffer.push_back({ 0.0f,0.5f, 0.0f , 1.0f, 0.0f, 0.0f });
+	vBuffer.push_back({ 0.5f,-0.5f, 0.0f ,0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -0.5f,-0.5f, 0.0f ,0.0f, 0.0f, 1.0f });
 
 	iBuffer.push_back(offset + 0u);
 	iBuffer.push_back(offset + 1u);
