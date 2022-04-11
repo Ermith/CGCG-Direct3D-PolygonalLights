@@ -38,13 +38,14 @@ public:
 	void SwapBuffers();
 	void DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir);
 	void FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
-	void FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
+	void FillCubeShared(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
 private:
 	ComPtr<ID3D11Device> _pDevice;
 	ComPtr<ID3D11DeviceContext> _pContext;
 	ComPtr<IDXGISwapChain> _pSwapChain;
 	ComPtr<ID3D11RenderTargetView> _pRTView;
-	ComPtr<ID3D11Buffer> _pTransform;
+	ComPtr<ID3D11Buffer> _pVSConstantBuffer;
+	ComPtr<ID3D11Buffer> _pPSConstantBuffer;
 	FLOAT _width;
 	FLOAT _height;
 	float angle = 0.0f;
@@ -63,8 +64,12 @@ private:
 		const char* what() const throw () { return _message; }
 	};
 
-	struct ConstantBuffer {
+	struct VSConstantBuffer {
 		dx::XMMATRIX transform;
+	};
+
+	struct PSConstantBuffer {
+		dx::XMVECTOR viewPos;
 	};
 };
 
@@ -134,11 +139,10 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 		_pContext->IASetIndexBuffer(pIndexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0u);
 	}
 
-	// Update Constant Buffer
+	// Update VS Constant Buffer
 	//========================================
 	{
-		angle += 0.01f;
-		const ConstantBuffer cb = {
+		const VSConstantBuffer cb = {
 			dx::XMMatrixTranspose(
 				//dx::XMMatrixRotationY(angle) *
 				//dx::XMMatrixRotationX(angle) *
@@ -151,7 +155,7 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 		// Update the constant buffer.
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
 		_pContext->Map(
-			_pTransform.Get(),
+			_pVSConstantBuffer.Get(),
 			0,
 			D3D11_MAP_WRITE_DISCARD,
 			0,
@@ -159,7 +163,27 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 		);
 		memcpy(mappedResource.pData, &cb,
 			sizeof(cb));
-		_pContext->Unmap(_pTransform.Get(), 0);
+		_pContext->Unmap(_pVSConstantBuffer.Get(), 0);
+	}
+
+	// Update PS Constant Buffer
+	{
+		const PSConstantBuffer cb = {
+			dx::XMLoadFloat3(&cameraPos)
+		};
+
+		// Update the constant buffer.
+		D3D11_MAPPED_SUBRESOURCE mappedResource;
+		_pContext->Map(
+			_pPSConstantBuffer.Get(),
+			0,
+			D3D11_MAP_WRITE_DISCARD,
+			0,
+			&mappedResource
+		);
+		memcpy(mappedResource.pData, &cb,
+			sizeof(cb));
+		_pContext->Unmap(_pPSConstantBuffer.Get(), 0);
 	}
 
 	_pContext->DrawIndexed(iBuffer.size(), 0u, 0u);
@@ -178,7 +202,7 @@ void Graphics::FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBu
 	iBuffer.push_back(offset + 2u);
 }
 
-void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
+void Graphics::FillCubeShared(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
 	unsigned short offset = vBuffer.size();
 
 	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f });
@@ -261,38 +285,61 @@ void Graphics::CreateRenderTargetView() {
 
 void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 	// create pixel shader
-	ComPtr<ID3D11PixelShader> pPixelShader;
-	CHECKED(D3DReadFileToBlob(L"PixelShader.cso", &blobBuffer), "Reading PShader fucked up");
-	CHECKED(_pDevice->CreatePixelShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pPixelShader), "PShader creation fucked up");
-	_pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
+	{
+		ComPtr<ID3D11PixelShader> pPixelShader;
+		CHECKED(D3DReadFileToBlob(L"PixelShader.cso", &blobBuffer), "Reading PShader fucked up");
+		CHECKED(_pDevice->CreatePixelShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pPixelShader), "PShader creation fucked up");
+		_pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
+
+		// bind view position to pixel shader
+		const PSConstantBuffer cb = {
+			dx::XMVECTOR {0, 0, 0}
+		};
+
+		D3D11_BUFFER_DESC bd = {};
+		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		bd.MiscFlags = 0u;
+		bd.ByteWidth = sizeof(cb);
+		bd.StructureByteStride = 0u;
+
+		D3D11_SUBRESOURCE_DATA sd = {};
+		sd.pSysMem = &cb;
+
+		HRESULT hr = _pDevice->CreateBuffer(&bd, &sd, &_pPSConstantBuffer);
+		_pContext->PSSetConstantBuffers(0u, 1u, _pPSConstantBuffer.GetAddressOf());
+	}
 
 	// create vertex shader
-	ComPtr<ID3D11VertexShader> pVertexShader;
-	CHECKED(D3DReadFileToBlob(L"VertexShader.cso", &blobBuffer), "Reading VSHader fucked up");
-	CHECKED(_pDevice->CreateVertexShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pVertexShader), "VShader creation fucked up");
-	_pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
+	{
+		ComPtr<ID3D11VertexShader> pVertexShader;
+		CHECKED(D3DReadFileToBlob(L"VertexShader.cso", &blobBuffer), "Reading VSHader fucked up");
+		CHECKED(_pDevice->CreateVertexShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pVertexShader), "VShader creation fucked up");
+		_pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
 
-	// bind transformation matrix to vertex shader
-	//===============================================
-	const ConstantBuffer cb = {
-		dx::XMMatrixTranspose(
-			dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
-		)
-	};
+		// bind transformation matrix to vertex shader
+		const VSConstantBuffer cb = {
+			dx::XMMatrixTranspose(
+				dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
+			)
+		};
 
-	D3D11_BUFFER_DESC bd = {};
-	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	bd.Usage = D3D11_USAGE_DYNAMIC;
-	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	bd.MiscFlags = 0u;
-	bd.ByteWidth = sizeof(ConstantBuffer);
-	bd.StructureByteStride = 0u;
+		D3D11_BUFFER_DESC bd = {};
+		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		bd.Usage = D3D11_USAGE_DYNAMIC;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		bd.MiscFlags = 0u;
+		bd.ByteWidth = sizeof(VSConstantBuffer);
+		bd.StructureByteStride = 0u;
 
-	D3D11_SUBRESOURCE_DATA sd = {};
-	sd.pSysMem = &cb;
+		D3D11_SUBRESOURCE_DATA sd = {};
+		sd.pSysMem = &cb;
 
-	_pDevice->CreateBuffer(&bd, &sd, &_pTransform);
-	_pContext->VSSetConstantBuffers(0u, 1u, _pTransform.GetAddressOf());
+		_pDevice->CreateBuffer(&bd, &sd, &_pVSConstantBuffer);
+		_pContext->VSSetConstantBuffers(0u, 1u, _pVSConstantBuffer.GetAddressOf());
+	}
+
 }
 
 void Graphics::CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer) {

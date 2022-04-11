@@ -21,11 +21,8 @@ public:
 bool Keyboard::keys[255];
 
 LRESULT CALLBACK window_callback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-	if (uMsg == WM_KEYDOWN)
-		Keyboard::PressKey(wParam);
-
-	if (uMsg == WM_KEYUP)
-		Keyboard::ReleaseKey(wParam);
+	if (uMsg == WM_KEYDOWN) Keyboard::PressKey(wParam);
+	if (uMsg == WM_KEYUP) Keyboard::ReleaseKey(wParam);
 
 	if (uMsg == WM_DESTROY) {
 		PostQuitMessage(0);
@@ -68,7 +65,7 @@ int WINAPI wWinMain(
 
 				vector<Vertex> vBuffer;
 				vector<unsigned short> iBuffer;
-				gr.FillCube(vBuffer, iBuffer);
+				gr.FillCubeShared(vBuffer, iBuffer);
 				gr.DrawTriangles(vBuffer, iBuffer, cameraPosition, cameraDir);
 				vBuffer.clear();
 				iBuffer.clear();
