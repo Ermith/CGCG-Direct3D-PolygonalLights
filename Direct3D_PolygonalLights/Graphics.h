@@ -145,10 +145,8 @@ void Graphics::DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigne
 	{
 		const VSConstantBuffer cb = {
 			dx::XMMatrixTranspose(
-				//dx::XMMatrixRotationY(angle) *
-				//dx::XMMatrixRotationX(angle) *
 				dx::XMMatrixTranslation(0,0,4) *
-				dx::XMMatrixLookToLH(dx::XMLoadFloat3(&cameraPos), dx::XMLoadFloat3(&cameraDir), {0,-1,0}) *
+				dx::XMMatrixLookToLH(dx::XMLoadFloat3(&cameraPos), dx::XMLoadFloat3(&cameraDir), {0,1,0}) *
 				dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 500.0f)
 			)
 		};
@@ -251,13 +249,13 @@ void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer
 	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 1.0f });
 	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 1.0f });
 
-	// BOTTOM - blue
+	// TOP - blue
 	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  0.0f, 0.0f, 1.0f });
 	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 0.0f, 1.0f });
 	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f });
 	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f });
 
-	// TOP - yellow
+	// BOTTOM - yellow
 	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f });
 	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 1.0f, 0.0f });
 	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 1.0f, 0.0f });
