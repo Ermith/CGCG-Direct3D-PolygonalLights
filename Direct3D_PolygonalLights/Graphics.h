@@ -39,6 +39,7 @@ public:
 	void DrawTriangles(const vector<Vertex>& vBuffer, const vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir);
 	void FillTriangle(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
 	void FillCubeShared(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
+	void FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer);
 private:
 	ComPtr<ID3D11Device> _pDevice;
 	ComPtr<ID3D11DeviceContext> _pContext;
@@ -221,6 +222,61 @@ void Graphics::FillCubeShared(vector<Vertex>& vBuffer, vector<unsigned short>& i
 		4,5,7, 4,7,6,
 		0,4,2, 2,4,6,
 		0,1,4, 1,5,4
+	};
+
+	for (unsigned short index : indices)
+		iBuffer.push_back(offset + index);
+}
+
+void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
+	unsigned short offset = vBuffer.size();
+
+	float red[3] = { 1.0f, 0.0f, 0.0f };
+
+	// BACK - green
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f });
+
+	// LEFT - magenta
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	1.0f, 0.0f, 1.0f });
+
+	// RIGHT - cyan
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	0.0f, 1.0f, 1.0f });
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 1.0f, 1.0f });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 1.0f });
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 1.0f });
+
+	// BOTTOM - blue
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  0.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f });
+
+	// TOP - yellow
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  1.0f, 1.0f, 0.0f });
+
+	// FRONT - red
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 0.0f, 0.0f });
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	1.0f, 0.0f, 0.0f });
+
+
+	const unsigned short indices[] = {
+		0,1,2,    2,1,3,	
+		4,6,5,	  6,7,5,
+		8,9,10,   10,9,11,	
+		12,14,13, 14,15,13, 
+		16,17,18, 18,17,19, 
+		20,22,21, 22,23,21  
 	};
 
 	for (unsigned short index : indices)
