@@ -6,7 +6,7 @@
 #define HEIGHT 600
 
 dx::XMFLOAT3 cameraPosition = {-4, 1, -4};
-dx::XMFLOAT3 cameraDir = {0, 0, 1};
+dx::XMFLOAT3 cameraDir = {0, -1, 1};
 
 
 class Keyboard {
@@ -65,6 +65,7 @@ int WINAPI wWinMain(
 
 				vector<Vertex> vBuffer;
 				vector<unsigned short> iBuffer;
+				gr.FillFloor(vBuffer, iBuffer);
 				gr.FillCube(vBuffer, iBuffer);
 				gr.DrawTriangles(vBuffer, iBuffer, cameraPosition, cameraDir);
 				vBuffer.clear();

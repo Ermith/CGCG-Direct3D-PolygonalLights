@@ -25,17 +25,18 @@ struct PSIn {
 	float3 normal : Normal;
 };
 
-float4 CalcDirLight(DirLight light, float3 normal, float4 fragColor, float3 viewDir, float shadow = 0.0, float4 specularity = 1.0, float exponent = 32) {
+float4 CalcDirLight(DirLight light, float3 normal, float4 fragColor, float3 viewDir, float shadow = 0.0, float4 specularity = 1.0, float exponent = 64) {
 	float3 lightDir = light.Direction.xyz;
 
 	float NdotH = dot(normal, normalize(lightDir + viewDir));
-	float NdotL = dot(lightDir, normal);
+	float NdotL = dot(lightDir, normalize(normal));
 	float intensityDiff = saturate(NdotL);
 	float intensitySpec = pow(saturate(NdotH), exponent);
 
 	float3 ambient = float3(1, 1, 1) * 0.2;
-	float3 specular = intensitySpec * light.Color * 20;
-	float3 diffuse = intensityDiff * light.Color * 20;
+	float3 specular = intensitySpec * light.Color * 10;
+	float3 diffuse = intensityDiff * light.Color;
+//	return float4(diffuse * fragColor, 1);
 	return float4(fragColor * (ambient + diffuse) + specular, 1);
 }
 

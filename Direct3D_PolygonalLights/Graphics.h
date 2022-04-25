@@ -73,6 +73,10 @@ public:
 
 	template<class V>
 	void FillCube(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
+
+
+	template<class V>
+	void FillFloor(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
 private:
 	struct VSConstantBuffer {
 		dx::XMMATRIX modelToWorld;
@@ -187,9 +191,14 @@ void Graphics::DrawTriangles(const vector<V>& vBuffer, const vector<unsigned sho
 	//========================================
 	{
 		vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(dx::XMMatrixTranslation(0, 0, 4));
-		vsConstantBuffer.worldToView = dx::XMMatrixTranspose(dx::XMMatrixLookToLH(dx::XMLoadFloat3(&cameraPos), dx::XMLoadFloat3(&cameraDir), { 0,1,0 }));
-		vsConstantBuffer.projection = dx::XMMatrixTranspose(dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 500.0f));
 		vsConstantBuffer.normalTransform = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld));
+		vsConstantBuffer.projection = dx::XMMatrixTranspose(dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 500.0f));
+		vsConstantBuffer.worldToView = dx::XMMatrixTranspose(dx::XMMatrixLookToLH(
+			dx::XMLoadFloat3(&cameraPos),
+			dx::XMVector3Normalize(dx::XMLoadFloat3(&cameraDir)),
+			{ 0, 1, 0 }
+		));
+
 
 		// Update the constant buffer.
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -323,6 +332,24 @@ void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer
 		iBuffer.push_back(offset + index);
 }
 
+template<>
+void Graphics::FillFloor(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
+	unsigned short offset = vBuffer.size();
+
+	vBuffer.push_back({ -10.0f, -1.0f, -10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ 10.0f,  -1.0f, -10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ 10.0f,  -1.0f, 10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -10.0f, -1.0f, 10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f });
+
+
+	const unsigned short indices[] = {
+		0,2,1,    0,3,2,
+	};
+
+	for (unsigned short index : indices)
+		iBuffer.push_back(offset + index);
+}
+
 #pragma endregion
 
 #pragma region PrivateMethods
@@ -389,15 +416,22 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 
 		// bind view position to pixel shader
 		psConstantBuffer.viewPos = {0, 0, 0, 1};
-		psConstantBuffer.lightCounts.y = 1;
-		psConstantBuffer.spotLights[0].Color = dx::XMFLOAT4{1, 1, 1, 1};
+		psConstantBuffer.lightCounts.y = 2;
+		psConstantBuffer.spotLights[0].Color = dx::XMFLOAT4{0, 1, 0, 1};
 		psConstantBuffer.spotLights[0].Position = dx::XMFLOAT4{ 5, 5, 0, 1 };
 		psConstantBuffer.spotLights[0].Direction = dx::XMFLOAT4{ -1, -1, 1, 1};
-		psConstantBuffer.spotLights[0].InnerCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(30.0f)), 0.0f, 0.0f, 0.0f);
-		psConstantBuffer.spotLights[0].OuterCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(34.0f)), 0.0f, 0.0f, 0.0f);
+		psConstantBuffer.spotLights[0].InnerCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(40.0f)), 0.0f, 0.0f, 0.0f);
+		psConstantBuffer.spotLights[0].OuterCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(45.0f)), 0.0f, 0.0f, 0.0f);
+
+		psConstantBuffer.spotLights[1].Color = dx::XMFLOAT4{ 0, 0, 1, 1 };
+		psConstantBuffer.spotLights[1].Position = dx::XMFLOAT4{ -5, 5, 0, 1 };
+		psConstantBuffer.spotLights[1].Direction = dx::XMFLOAT4{ 1, -1, 1, 1 };
+		psConstantBuffer.spotLights[1].InnerCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(40.0f)), 0.0f, 0.0f, 0.0f);
+		psConstantBuffer.spotLights[1].OuterCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(45.0f)), 0.0f, 0.0f, 0.0f);
+
 
 		//psConstantBuffer.lightCounts.z = 1;
-		//psConstantBuffer.dirLights[0].Direction = dx::XMFLOAT4(1, 1, -1, 1);
+		//psConstantBuffer.dirLights[0].Direction = dx::XMFLOAT4(1, 1, 1, 1);
 		//psConstantBuffer.dirLights[0].Color = dx::XMFLOAT4(1, 1, 1, 1);
 		
 		//psConstantBuffer.lightCounts.x = 1;
