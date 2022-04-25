@@ -19,6 +19,7 @@ VSOut main(float3 pos : Position, float3 col : Color, float3 normal : Normal)
 	o.position = mul(o.worldPosition, worldToView);
 	o.position = mul(o.position, projection);
 	o.normal = mul(float4(normal, 1), normalTransform).xyz;
+	o.normal = normal;
 	o.color = col;
 	return o;
 }

@@ -15,6 +15,9 @@
 
 #define CHECKED(expr, message) if(FAILED(expr)) throw graphicsException(message);
 
+
+#define LIGHT_BUFFER_SIZE 10
+
 namespace dx = DirectX;
 using Microsoft::WRL::ComPtr;
 using std::exception;
@@ -35,6 +38,24 @@ struct Vertex {
 	float nz;
 };
 
+struct PointLight {
+	dx::XMFLOAT4 Position;
+	dx::XMFLOAT4 Color;
+};
+
+struct DirLight {
+	dx::XMFLOAT4 Direction;
+	dx::XMFLOAT4 Color;
+};
+
+struct SpotLight {
+	dx::XMFLOAT4 Position;
+	dx::XMFLOAT4 Direction;
+	dx::XMFLOAT4 Color;
+	dx::XMFLOAT4 InnerCone;
+	dx::XMFLOAT4 OuterCone;
+};
+
 class Graphics {
 public:
 	Graphics(HWND hWnd, FLOAT width, FLOAT height);
@@ -53,15 +74,32 @@ public:
 	template<class V>
 	void FillCube(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
 private:
+	struct VSConstantBuffer {
+		dx::XMMATRIX modelToWorld;
+		dx::XMMATRIX worldToView;
+		dx::XMMATRIX projection;
+		dx::XMMATRIX normalTransform;
+	};
+
+	struct PSConstantBuffer {
+		dx::XMFLOAT4 viewPos;
+		dx::XMINT4 lightCounts = { 0, 0, 0, 0 };
+		PointLight pointLights[LIGHT_BUFFER_SIZE];
+		SpotLight spotLights[LIGHT_BUFFER_SIZE];
+		DirLight dirLights[LIGHT_BUFFER_SIZE];
+	};
+
+
 	ComPtr<ID3D11Device> _pDevice;
 	ComPtr<ID3D11DeviceContext> _pContext;
 	ComPtr<IDXGISwapChain> _pSwapChain;
 	ComPtr<ID3D11RenderTargetView> _pRTView;
 	ComPtr<ID3D11Buffer> _pVSConstantBuffer;
 	ComPtr<ID3D11Buffer> _pPSConstantBuffer;
+	PSConstantBuffer psConstantBuffer;
+	VSConstantBuffer vsConstantBuffer;
 	FLOAT _width;
 	FLOAT _height;
-	float angle = 0.0f;
 
 	void CreateDeviceAndSwapChain(HWND hWnd);
 	void CreateRenderTargetView();
@@ -75,17 +113,6 @@ private:
 	public:
 		graphicsException(const char* message) : _message(message) {}
 		const char* what() const throw () { return _message; }
-	};
-
-	struct VSConstantBuffer {
-		dx::XMMATRIX modelToWorld;
-		dx::XMMATRIX worldToView;
-		dx::XMMATRIX projection;
-		dx::XMMATRIX normalTransform;
-	};
-
-	struct PSConstantBuffer {
-		dx::XMVECTOR viewPos;
 	};
 };
 
@@ -159,15 +186,10 @@ void Graphics::DrawTriangles(const vector<V>& vBuffer, const vector<unsigned sho
 	// Update VS Constant Buffer
 	//========================================
 	{
-		VSConstantBuffer cb;
-		cb.modelToWorld = dx::XMMatrixTranspose(
-			dx::XMMatrixTranslation(0, 0, 4));
-		cb.worldToView = dx::XMMatrixTranspose(
-				dx::XMMatrixLookToLH(dx::XMLoadFloat3(&cameraPos), dx::XMLoadFloat3(&cameraDir), { 0,1,0 }));
-		cb.projection = dx::XMMatrixTranspose(
-				dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 500.0f));
-		cb.normalTransform = XMMatrixTranspose(
-			XMMatrixInverse(nullptr, cb.modelToWorld));
+		vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(dx::XMMatrixTranslation(0, 0, 4));
+		vsConstantBuffer.worldToView = dx::XMMatrixTranspose(dx::XMMatrixLookToLH(dx::XMLoadFloat3(&cameraPos), dx::XMLoadFloat3(&cameraDir), { 0,1,0 }));
+		vsConstantBuffer.projection = dx::XMMatrixTranspose(dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 500.0f));
+		vsConstantBuffer.normalTransform = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld));
 
 		// Update the constant buffer.
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -178,16 +200,14 @@ void Graphics::DrawTriangles(const vector<V>& vBuffer, const vector<unsigned sho
 			0,
 			&mappedResource
 		);
-		memcpy(mappedResource.pData, &cb,
-			sizeof(cb));
+		memcpy(mappedResource.pData, &vsConstantBuffer,
+			sizeof(vsConstantBuffer));
 		_pContext->Unmap(_pVSConstantBuffer.Get(), 0);
 	}
 
 	// Update PS Constant Buffer
 	{
-		const PSConstantBuffer cb = {
-			dx::XMLoadFloat3(&cameraPos)
-		};
+		psConstantBuffer.viewPos = dx::XMFLOAT4{ cameraPos.x, cameraPos.y, cameraPos.z, 1 };
 
 		// Update the constant buffer.
 		D3D11_MAPPED_SUBRESOURCE mappedResource;
@@ -198,8 +218,9 @@ void Graphics::DrawTriangles(const vector<V>& vBuffer, const vector<unsigned sho
 			0,
 			&mappedResource
 		);
-		memcpy(mappedResource.pData, &cb,
-			sizeof(cb));
+
+		memcpy(mappedResource.pData, &psConstantBuffer,
+			sizeof(psConstantBuffer));
 		_pContext->Unmap(_pPSConstantBuffer.Get(), 0);
 	}
 
@@ -367,20 +388,34 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 		_pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
 
 		// bind view position to pixel shader
-		const PSConstantBuffer cb = {
-			dx::XMVECTOR {0, 0, 0}
-		};
+		psConstantBuffer.viewPos = {0, 0, 0, 1};
+		psConstantBuffer.lightCounts.y = 1;
+		psConstantBuffer.spotLights[0].Color = dx::XMFLOAT4{1, 1, 1, 1};
+		psConstantBuffer.spotLights[0].Position = dx::XMFLOAT4{ 5, 5, 0, 1 };
+		psConstantBuffer.spotLights[0].Direction = dx::XMFLOAT4{ -1, -1, 1, 1};
+		psConstantBuffer.spotLights[0].InnerCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(30.0f)), 0.0f, 0.0f, 0.0f);
+		psConstantBuffer.spotLights[0].OuterCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(34.0f)), 0.0f, 0.0f, 0.0f);
+
+		//psConstantBuffer.lightCounts.z = 1;
+		//psConstantBuffer.dirLights[0].Direction = dx::XMFLOAT4(1, 1, -1, 1);
+		//psConstantBuffer.dirLights[0].Color = dx::XMFLOAT4(1, 1, 1, 1);
+		
+		//psConstantBuffer.lightCounts.x = 1;
+		//psConstantBuffer.pointLights[0].Position = dx::XMFLOAT4{ 2, 4, 0, 1 };
+		//psConstantBuffer.pointLights[0].Color = dx::XMFLOAT4{ 1, 1, 1, 1 };
+		//psConstantBuffer.pointLights[1].Position = dx::XMFLOAT4{ -2, 0, 0, 1 };
+		//psConstantBuffer.pointLights[1].Color = dx::XMFLOAT4{ 1, 1, 1, 1 };
 
 		D3D11_BUFFER_DESC bd = {};
 		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 		bd.Usage = D3D11_USAGE_DYNAMIC;
-		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; //| D3D11_CPU_ACCESS_READ;
 		bd.MiscFlags = 0u;
-		bd.ByteWidth = sizeof(cb);
+		bd.ByteWidth = sizeof(psConstantBuffer);
 		bd.StructureByteStride = 0u;
 
 		D3D11_SUBRESOURCE_DATA sd = {};
-		sd.pSysMem = &cb;
+		sd.pSysMem = &psConstantBuffer;
 
 		HRESULT hr = _pDevice->CreateBuffer(&bd, &sd, &_pPSConstantBuffer);
 		_pContext->PSSetConstantBuffers(0u, 1u, _pPSConstantBuffer.GetAddressOf());
@@ -394,11 +429,9 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 		_pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
 
 		// bind transformation matrix to vertex shader
-		const VSConstantBuffer cb = {
-			dx::XMMatrixTranspose(
-				dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
-			)
-		};
+		vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(
+			dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
+		);
 
 		D3D11_BUFFER_DESC bd = {};
 		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -409,7 +442,7 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 		bd.StructureByteStride = 0u;
 
 		D3D11_SUBRESOURCE_DATA sd = {};
-		sd.pSysMem = &cb;
+		sd.pSysMem = &vsConstantBuffer;
 
 		_pDevice->CreateBuffer(&bd, &sd, &_pVSConstantBuffer);
 		_pContext->VSSetConstantBuffers(0u, 1u, _pVSConstantBuffer.GetAddressOf());
