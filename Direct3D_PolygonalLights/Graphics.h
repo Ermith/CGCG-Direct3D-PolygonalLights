@@ -239,6 +239,7 @@ private:
 	ComPtr<ID3D11Resource> _pLTCAmpTexture;
 	ComPtr<ID3D11ShaderResourceView> _pLTCAmpTextureView;
 	ComPtr<ID3D11SamplerState> _pSampler;
+	ComPtr<ID3D11DepthStencilView> _pDepthStencilView;
 	
 	PSConstantBuffer psConstantBuffer;
 	VSConstantBuffer vsConstantBuffer;
@@ -278,6 +279,7 @@ Graphics::Graphics(HWND hWnd, FLOAT width, FLOAT height)
 
 void Graphics::Clear(const FLOAT colorRGBA[4]) {
 	_pContext->ClearRenderTargetView(_pRTView.Get(), colorRGBA);
+	_pContext->ClearDepthStencilView(_pDepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0u);
 }
 
 void Graphics::SwapBuffers() {
@@ -490,10 +492,10 @@ template<>
 void Graphics::FillFloor(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer, dx::XMMATRIX transform) {
 	unsigned short offset = vBuffer.size();
 
-	vBuffer.push_back({ -10.0f, -1.0f, -10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
-	vBuffer.push_back({ 10.0f,  -1.0f, -10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
-	vBuffer.push_back({ 10.0f,  -1.0f, 10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
-	vBuffer.push_back({ -10.0f, -1.0f, 10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ -100.0f, -1.0f, -100.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ 100.0f,  -1.0f, -100.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ 100.0f,  -1.0f, 100.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ -100.0f, -1.0f, 100.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
 
 
 	const unsigned short indices[] = {
@@ -588,8 +590,36 @@ void Graphics::CreateRenderTargetView() {
 	)))
 		throw graphicsException("RenderTargetView fucked up");
 
-	// bind render target
-	_pContext->OMSetRenderTargets(1u, _pRTView.GetAddressOf(), nullptr);
+	// create and bind depth stencil state
+	D3D11_DEPTH_STENCIL_DESC dsDesc = {};
+	dsDesc.DepthEnable = true;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	ComPtr<ID3D11DepthStencilState> pDSState;
+	_pDevice->CreateDepthStencilState(&dsDesc, &pDSState);
+	_pContext->OMSetDepthStencilState(pDSState.Get(), 1u);
+
+	// create depth stencil texture
+	ComPtr<ID3D11Texture2D> pDepthSencil;
+	D3D11_TEXTURE2D_DESC descDepth = {};
+	descDepth.Width = 800u;
+	descDepth.Height = 600u;
+	descDepth.MipLevels = 1u;
+	descDepth.ArraySize = 1u;
+	descDepth.Format = DXGI_FORMAT_D32_FLOAT;
+	descDepth.SampleDesc.Count = 1u;
+	descDepth.SampleDesc.Quality = 0u;
+	descDepth.Usage = D3D11_USAGE_DEFAULT;
+	descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	_pDevice->CreateTexture2D(&descDepth, nullptr, &pDepthSencil);
+
+	// create depth stencil view
+	D3D11_DEPTH_STENCIL_VIEW_DESC descDSV = {};
+	descDSV.Format = DXGI_FORMAT_D32_FLOAT;
+	descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	descDSV.Texture2D.MipSlice = 0u;
+	_pDevice->CreateDepthStencilView(pDepthSencil.Get(), &descDSV, &_pDepthStencilView);
+	_pContext->OMSetRenderTargets(1u, _pRTView.GetAddressOf(), _pDepthStencilView.Get());
 }
 
 void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {

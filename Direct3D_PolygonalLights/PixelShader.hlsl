@@ -345,7 +345,7 @@ float4 CalcRectLight(
 		0, 1, 0,
 		0, 0, 1);
 	float diffuse = LTCEvaluate(fragPos, viewDir, normal, points, identity);
-	diffuse *= 2;
+	diffuse *= 1.5;
 
 	// MAKE MATRIX SAMPLE
 	float theta = acos(dot(normal, viewDir));
@@ -359,7 +359,7 @@ float4 CalcRectLight(
 		t.w, 0, t.x
 		);
 	float specular = LTCEvaluate(fragPos, viewDir, normal, points, Minv);
-	specular *= ltcAmp.Sample(ltcSampler, uv).w * 0.1;
+	specular *= ltcAmp.Sample(ltcSampler, uv).w * 0.2;
 
 	float4 ambient = float4(0.01, 0.01, 0.01, 1);
 
@@ -369,83 +369,6 @@ float4 CalcRectLight(
 	col += ambient * fragColor;
 	col.w = 1;
 	return col;
-}
-
-float4 CalcPointLightCC(PointLight light, float3 normal, float3 fragPos, float4 fragColor, float3 viewDir, float4 specularity = 1.0, float exponent = 32, float ambientStr = 0.2) {
-	float3 lightPos = light.Position.xyz + float3(-2,0,4);
-	float halfSize = 1;
-	
-	// LowerLeft, LowerRight, UpperLeft, UpperRight
-	float3 LLCorner = lightPos + float3(-halfSize, -halfSize, 0);
-	float3 LRCorner = lightPos + float3(halfSize, -halfSize, 0);
-	float3 ULCorner = lightPos + float3(-halfSize, halfSize, 0);
-	float3 URCorner = lightPos + float3(halfSize, halfSize, 0);
-	float3 rectNormal = float3(0, 0, 1);
-	float4 rectPlane = float4(rectNormal, -dot(rectNormal, lightPos));
-
-	float t = -dot(rectPlane, float4(viewPos.xyz, 1)) / dot(rectPlane.xyz, -viewDir);
-
-	float3 pos = viewPos.xyz - viewDir * t;
-	float3 localPos = pos - lightPos;
-	float dist = distance(fragPos, viewPos);
-
-	float x = dot(localPos, float3(1, 0, 0));
-	float y = dot(localPos, float3(0, 1, 0));
-
-
-	if (t > 0 && dist > t && abs(x) <= halfSize && abs(y) <= halfSize) {
-		return float4(1, 1, 1, 1);
-	}
-
-	
-	float3 specular = float3(0, 0, 0);
-	float3 diffuse = float3(0, 0, 0);
-
-	
-
-	float3 specColor = light.Color.xyz;
-	float3 diffColor = fragColor.xyz;
-
-	// LTC evaluate
-	float3 T1, T2;
-	T1 = normalize(viewDir - normal * dot(viewDir, normal));
-	T2 = cross(normal, T1);
-
-	float3x3 M;
-	M[0] = T1;
-	M[1] = T2;
-	M[2] = normal;
-	float3x3 Minv = transpose(M);
-
-	float3 L[5];
-	L[0] = mul(LLCorner - fragPos, Minv);
-	L[1] = mul(LRCorner - fragPos, Minv);
-	L[2] = mul(ULCorner - fragPos, Minv);
-	L[3] = mul(URCorner - fragPos, Minv);
-
-	int n;
-	ClipQuadToHorizon(L, n);
-
-	L[0] = normalize(L[0]);
-	L[1] = normalize(L[1]);
-	L[2] = normalize(L[2]);
-	L[3] = normalize(L[3]);
-	L[4] = normalize(L[4]);
-	float sum = 0;
-
-	sum += IntegrateEdge(L[0], L[1]);
-	sum += IntegrateEdge(L[1], L[2]);
-	sum += IntegrateEdge(L[2], L[3]);
-	if (n >= 4)
-		sum += IntegrateEdge(L[3], L[4]);
-	if (n == 5)
-		sum += IntegrateEdge(L[4], L[0]);
-	sum = max(sum, 0);
-	specular = float3(sum, sum, sum);
-
-	float3 col = light.Color.xyz * (specColor * specular + diffColor * diffuse);
-	return float4(col, 1) / (2.0 * 3.14);
-	//return fragColor;
 }
 
 float4 main(PSIn input) : SV_TARGET{

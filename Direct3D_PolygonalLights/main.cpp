@@ -48,9 +48,9 @@ int WINAPI wWinMain(
 		//gr.AddSpotLight({ 2, 1, 0 }, { 1, 1, 0 }, {-1, -1, 0}, 1, 0.5f, 0.5f);
 		//gr.AddPointLight({ 2, 1, 1 }, {1, 1, 0}, 1);
 		gr.AddRectLight(
-			{ 0, 1, 1 }, { 2.5, 1, 5.5 }, 1, 1, 0.0, 0.0, 4);
+			{ 0, 1, 1 }, { 4, 1, 4 }, 1, 1, 0.0, 0.0, 4);
 
-		dx::XMFLOAT3 cubeLocation = { 0, -1, 4 };
+		dx::XMFLOAT3 cubeLocation = { 0, 0, 4 };
 		dx::XMFLOAT3 cubeRotation = { 0, 0, 0 };
 		dx::XMMATRIX cubeTransform = dx::XMMatrixIdentity();
 
