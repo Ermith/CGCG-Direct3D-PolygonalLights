@@ -5,6 +5,7 @@ struct VSOut {
 	float4 worldPosition : Position;
 	float3 color : Color;
 	float3 normal : Normal;
+	unsigned int lightIndex : Index;
 };
 
 cbuffer CBuf {
@@ -12,6 +13,7 @@ cbuffer CBuf {
 	matrix worldToView;
 	matrix projection;
 	matrix normalTransform[MAX_OBJECTS];
+	unsigned int objects;
 };
 
 VSOut main(float3 pos : Position, float3 col : Color, float3 normal : Normal, unsigned int index : Index)
@@ -23,5 +25,6 @@ VSOut main(float3 pos : Position, float3 col : Color, float3 normal : Normal, un
 	o.normal = mul(float4(normal, 1), normalTransform[index]).xyz;
 	//o.normal = normal;
 	o.color = col;
+	o.lightIndex = objects - index;
 	return o;
 }

@@ -32,6 +32,7 @@ struct PSIn {
 	float4 worldPosition : Position;
 	float3 color : Color;
 	float3 normal : Normal;
+	unsigned int lightIndex : Index;
 };
 
 Texture2D ltcMat;
@@ -305,7 +306,8 @@ float LTCEvaluate(float3 fragPos, float3 viewDir, float3 normal, float3 points[4
 	if (n == 5)
 		sum += IntegrateEdge(L[4], L[0]);
 
-	sum = max(sum, 0);
+	//sum = max(sum, 0);
+	sum = abs(sum);
 
 	return sum;
 }
@@ -357,11 +359,14 @@ float4 CalcRectLight(
 		t.w, 0, t.x
 		);
 	float specular = LTCEvaluate(fragPos, viewDir, normal, points, Minv);
-	specular *= ltcAmp.Sample(ltcSampler, uv).w;
+	specular *= ltcAmp.Sample(ltcSampler, uv).w * 0.1;
+
+	float4 ambient = float4(0.01, 0.01, 0.01, 1);
 
 	float4 col = (specular * light.Color + diffuse * fragColor) * light.Color;
 	col *= lightIntensity;
 	col /= 2.0 * pi;
+	col += ambient * fragColor;
 	col.w = 1;
 	return col;
 }
@@ -443,10 +448,13 @@ float4 CalcPointLightCC(PointLight light, float3 normal, float3 fragPos, float4 
 	//return fragColor;
 }
 
-float4 main(PSIn input) : SV_TARGET {
+float4 main(PSIn input) : SV_TARGET{
+	if (input.lightIndex <= lightCounts.w)
+		return float4(input.color, 1);
+
 	float3 viewDir = normalize(viewPos - input.worldPosition.xyz);
 
-	float4 finalLight = float4(0, 0, 0, 0);
+	float4 finalLight = float4(0, 0, 0, 1);
 	for (int i = 0; i < lightCounts.x; i++)
 		finalLight += CalcPointLight(pointLights[i], input.normal, input.worldPosition.xyz, float4(input.color, 1), viewDir);
 

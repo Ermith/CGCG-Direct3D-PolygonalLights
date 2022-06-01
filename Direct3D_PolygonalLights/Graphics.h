@@ -11,6 +11,8 @@
 #include <vector>
 #include "DDSTextureLoader2.h"
 #include <fstream>
+#include <limits>
+#include <cmath>
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
@@ -77,7 +79,7 @@ public:
 	void SwapBuffers();
 
 	template<class V>
-	void DrawTriangles(const vector<V>& vBuffer, const vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir);
+	void DrawTriangles(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir);
 
 	template<class V>
 	void FillTriangle(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
@@ -90,6 +92,9 @@ public:
 
 	template<class V>
 	void FillFloor(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMMATRIX transform);
+
+	template<class V>
+	void FillQuadLight(vector<V>& vBuffer, vector<unsigned short>& iBuffer, RectLight light);
 
 	void AddPointLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, float intensity) {
 		if (psConstantBuffer.lightCounts.x >= LIGHT_BUFFER_SIZE)
@@ -210,6 +215,7 @@ private:
 		dx::XMMATRIX worldToView;
 		dx::XMMATRIX projection;
 		dx::XMMATRIX normalTransform[MAX_OBJECTS];
+		unsigned int objects;
 	};
 
 	struct PSConstantBuffer {
@@ -280,7 +286,13 @@ void Graphics::SwapBuffers() {
 }
 
 template<class V>
-void Graphics::DrawTriangles(const vector<V>& vBuffer, const vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir) {
+void Graphics::DrawTriangles(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir) {
+
+	for (int i = 0; i < psConstantBuffer.lightCounts.w; i++) {
+		RectLight* l = GetRectLight(i);
+		FillQuadLight(vBuffer, iBuffer, *GetRectLight(i));
+	}
+
 
 	// Bind Vertex Buffer
 	//========================================
@@ -335,6 +347,7 @@ void Graphics::DrawTriangles(const vector<V>& vBuffer, const vector<unsigned sho
 			dx::XMVector3Normalize(dx::XMLoadFloat3(&cameraDir)),
 			{ 0, 1, 0 }
 		));
+		vsConstantBuffer.objects = _objectIndex;
 
 
 		// Update the constant buffer.
@@ -489,6 +502,34 @@ void Graphics::FillFloor(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffe
 
 	for (unsigned short index : indices)
 		iBuffer.push_back(offset + index);
+
+	vsConstantBuffer.modelToWorld[_objectIndex] = dx::XMMatrixTranspose(transform);
+	vsConstantBuffer.normalTransform[_objectIndex] = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld[_objectIndex]));
+	_objectIndex++;
+}
+
+template<>
+void Graphics::FillQuadLight(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer, RectLight light) {
+	unsigned short offset = vBuffer.size();
+
+	vBuffer.push_back({ -1.0f, -1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z,  .0f, .0f, -1.0f, _objectIndex});
+	vBuffer.push_back({  1.0f, -1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z,  .0f, .0f, -1.0f, _objectIndex });
+	vBuffer.push_back({  1.0f,  1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z,  .0f, .0f, -1.0f, _objectIndex });
+	vBuffer.push_back({ -1.0f,  1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z,  .0f, .0f, -1.0f, _objectIndex });
+
+
+	const unsigned short indices[] = {
+		0,2,1,    0,3,2,
+		0,1,2,    0,2,3
+	};
+
+	for (unsigned short index : indices)
+		iBuffer.push_back(offset + index);
+	
+	dx::XMMATRIX transform =
+		dx::XMMatrixScaling(light.Params.x, light.Params.y, 0)
+		* dx::XMMatrixRotationRollPitchYaw(0, light.Params.z * 2 * 3.14, light.Params.w * 2 * 3.14)
+		* dx::XMMatrixTranslation(light.Position.x, light.Position.y, light.Position.z);
 
 	vsConstantBuffer.modelToWorld[_objectIndex] = dx::XMMatrixTranspose(transform);
 	vsConstantBuffer.normalTransform[_objectIndex] = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld[_objectIndex]));
