@@ -5,8 +5,8 @@
 #define WIDTH 800
 #define HEIGHT 600
 
-dx::XMFLOAT3 cameraPosition = {-4, 1, -4};
-dx::XMFLOAT3 cameraDir = {0, -1, 1};
+dx::XMFLOAT3 cameraPosition = { -4, 1, -4 };
+dx::XMFLOAT3 cameraDir = { 0, -1, 1 };
 
 
 class Keyboard {
@@ -47,7 +47,12 @@ int WINAPI wWinMain(
 		//gr.AddDirLight({ 0, 1, 0 }, { 0, -1, 1 }, 2);
 		//gr.AddSpotLight({ 2, 1, 0 }, { 1, 1, 0 }, {-1, -1, 0}, 1, 0.5f, 0.5f);
 		//gr.AddPointLight({ 2, 1, 1 }, {1, 1, 0}, 1);
-		gr.AddRectLight({ 1, 1, 0 }, { 2, 1, 0 }, 1, 1, 0, 0, 1);
+		gr.AddRectLight(
+			{ 1, 1, 1 }, { 2, 1, 0 }, 1, 1, 0.4, 0.0, 2);
+
+		dx::XMFLOAT3 cubeLocation = { 0, -1, 4 };
+		dx::XMFLOAT3 cubeRotation = { 0, 0, 0 };
+		dx::XMMATRIX cubeTransform = dx::XMMatrixIdentity();
 
 		while (true) {
 
@@ -61,7 +66,13 @@ int WINAPI wWinMain(
 				if (Keyboard::IsPressed('S')) cameraPosition.y -= 0.1f;
 				if (Keyboard::IsPressed('D')) cameraPosition.x += 0.1f;
 
-				gr.GetRectLight(0)->Params.z += 0.001f;
+				//gr.GetRectLight(0)->Params.z += 0.001f;
+				//cubeLocation.z += 0.01;
+				cubeRotation.y += 0.01;
+				//cubeRotation.y = .5f*2*3.14;
+				cubeTransform =
+					dx::XMMatrixRotationRollPitchYaw(cubeRotation.x, cubeRotation.y, cubeRotation.z)
+					* dx::XMMatrixTranslation(cubeLocation.x, cubeLocation.y, cubeLocation.z);
 			}
 
 			// Render
@@ -70,8 +81,8 @@ int WINAPI wWinMain(
 
 				vector<Vertex> vBuffer;
 				vector<unsigned short> iBuffer;
-				gr.FillFloor(vBuffer, iBuffer);
-				gr.FillCube(vBuffer, iBuffer);
+				gr.FillFloor(vBuffer, iBuffer, dx::XMMatrixIdentity());
+				gr.FillCube(vBuffer, iBuffer, cubeTransform);
 				gr.DrawTriangles(vBuffer, iBuffer, cameraPosition, cameraDir);
 				vBuffer.clear();
 				iBuffer.clear();

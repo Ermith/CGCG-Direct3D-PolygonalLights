@@ -19,6 +19,7 @@
 
 
 #define LIGHT_BUFFER_SIZE 10
+#define MAX_OBJECTS 100
 
 namespace dx = DirectX;
 using Microsoft::WRL::ComPtr;
@@ -38,6 +39,8 @@ struct Vertex {
 	float nx;
 	float ny;
 	float nz;
+
+	unsigned int index;
 };
 
 struct PointLight {
@@ -83,10 +86,10 @@ public:
 	void FillCubeShared(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
 
 	template<class V>
-	void FillCube(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
+	void FillCube(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMMATRIX transform);
 
 	template<class V>
-	void FillFloor(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
+	void FillFloor(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMMATRIX transform);
 
 	void AddPointLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, float intensity) {
 		if (psConstantBuffer.lightCounts.x >= LIGHT_BUFFER_SIZE)
@@ -203,10 +206,10 @@ public:
 
 private:
 	struct VSConstantBuffer {
-		dx::XMMATRIX modelToWorld;
+		dx::XMMATRIX modelToWorld[MAX_OBJECTS];
 		dx::XMMATRIX worldToView;
 		dx::XMMATRIX projection;
-		dx::XMMATRIX normalTransform;
+		dx::XMMATRIX normalTransform[MAX_OBJECTS];
 	};
 
 	struct PSConstantBuffer {
@@ -230,11 +233,13 @@ private:
 	ComPtr<ID3D11Resource> _pLTCAmpTexture;
 	ComPtr<ID3D11ShaderResourceView> _pLTCAmpTextureView;
 	ComPtr<ID3D11SamplerState> _pSampler;
-
+	
 	PSConstantBuffer psConstantBuffer;
 	VSConstantBuffer vsConstantBuffer;
 	FLOAT _width;
 	FLOAT _height;
+	size_t _objectIndex;
+
 
 	void CreateDeviceAndSwapChain(HWND hWnd);
 	void CreateRenderTargetView();
@@ -271,6 +276,7 @@ void Graphics::Clear(const FLOAT colorRGBA[4]) {
 
 void Graphics::SwapBuffers() {
 	_pSwapChain->Present(1u, 0u);
+	_objectIndex = 0;
 }
 
 template<class V>
@@ -321,8 +327,8 @@ void Graphics::DrawTriangles(const vector<V>& vBuffer, const vector<unsigned sho
 	// Update VS Constant Buffer
 	//========================================
 	{
-		vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(dx::XMMatrixTranslation(0, 0, 4));
-		vsConstantBuffer.normalTransform = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld));
+		//vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(dx::XMMatrixTranslation(0, 0, 4));
+		//vsConstantBuffer.normalTransform = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld[]));
 		vsConstantBuffer.projection = dx::XMMatrixTranspose(dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 500.0f));
 		vsConstantBuffer.worldToView = dx::XMMatrixTranspose(dx::XMMatrixLookToLH(
 			dx::XMLoadFloat3(&cameraPos),
@@ -408,46 +414,46 @@ void Graphics::FillCubeShared(vector<Vertex>& vBuffer, vector<unsigned short>& i
 }
 
 template<>
-void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
+void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer, dx::XMMATRIX transform) {
 	unsigned short offset = vBuffer.size();
 
 	float red[3] = { 1.0f, 0.0f, 0.0f };
 
 	// BACK - green
-	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f });
-	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f });
-	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f });
-	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f });
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f, _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f, _objectIndex });
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f , _objectIndex});
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f , _objectIndex});
 
 	// LEFT - magenta
-	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f });
-	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f });
-	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f });
-	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f });
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f , _objectIndex});
 
 	// RIGHT - cyan
-	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f });
-	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f });
-	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f });
-	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f , _objectIndex });
 
 	// TOP - blue
-	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f });
-	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f });
-	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f });
-	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f , _objectIndex});
 
 	// BOTTOM - yellow
-	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f });
-	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f });
-	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f });
-	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f });
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f , _objectIndex });
 
 	// FRONT - red
-	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f });
-	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f });
-	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f });
-	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f });
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f , _objectIndex });
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f , _objectIndex });
 
 
 	const unsigned short indices[] = {
@@ -461,16 +467,20 @@ void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer
 
 	for (unsigned short index : indices)
 		iBuffer.push_back(offset + index);
+
+	vsConstantBuffer.modelToWorld[_objectIndex] = dx::XMMatrixTranspose(transform);
+	vsConstantBuffer.normalTransform[_objectIndex] = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld[_objectIndex]));
+	_objectIndex++;
 }
 
 template<>
-void Graphics::FillFloor(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer) {
+void Graphics::FillFloor(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer, dx::XMMATRIX transform) {
 	unsigned short offset = vBuffer.size();
 
-	vBuffer.push_back({ -10.0f, -1.0f, -10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f });
-	vBuffer.push_back({ 10.0f,  -1.0f, -10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f });
-	vBuffer.push_back({ 10.0f,  -1.0f, 10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f });
-	vBuffer.push_back({ -10.0f, -1.0f, 10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f });
+	vBuffer.push_back({ -10.0f, -1.0f, -10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ 10.0f,  -1.0f, -10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ 10.0f,  -1.0f, 10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ -10.0f, -1.0f, 10.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
 
 
 	const unsigned short indices[] = {
@@ -479,6 +489,10 @@ void Graphics::FillFloor(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffe
 
 	for (unsigned short index : indices)
 		iBuffer.push_back(offset + index);
+
+	vsConstantBuffer.modelToWorld[_objectIndex] = dx::XMMatrixTranspose(transform);
+	vsConstantBuffer.normalTransform[_objectIndex] = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld[_objectIndex]));
+	_objectIndex++;
 }
 
 #pragma endregion
@@ -583,9 +597,9 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 		_pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
 
 		// bind transformation matrix to vertex shader
-		vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(
-			dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
-		);
+		//vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(
+		//	dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
+		//);
 
 		D3D11_BUFFER_DESC bd = {};
 		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -601,7 +615,6 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 		_pDevice->CreateBuffer(&bd, &sd, &_pVSConstantBuffer);
 		_pContext->VSSetConstantBuffers(0u, 1u, _pVSConstantBuffer.GetAddressOf());
 	}
-
 }
 
 void Graphics::CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer) {
@@ -611,7 +624,8 @@ void Graphics::CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer) {
 	{
 		{ "Position",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0 },
 		{ "Color",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12u,D3D11_INPUT_PER_VERTEX_DATA,0 },
-		{ "Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,24u,D3D11_INPUT_PER_VERTEX_DATA,0 }
+		{ "Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,24u,D3D11_INPUT_PER_VERTEX_DATA,0 },
+		{ "Index",0,DXGI_FORMAT_R32_UINT,0,36u,D3D11_INPUT_PER_VERTEX_DATA,0 }
 	};
 
 	CHECKED(_pDevice->CreateInputLayout(

@@ -343,7 +343,7 @@ float4 CalcRectLight(
 		0, 1, 0,
 		0, 0, 1);
 	float diffuse = LTCEvaluate(fragPos, viewDir, normal, points, identity);
-	diffuse *= 4;
+	diffuse *= 2;
 
 	// MAKE MATRIX SAMPLE
 	float theta = acos(dot(normal, viewDir));
