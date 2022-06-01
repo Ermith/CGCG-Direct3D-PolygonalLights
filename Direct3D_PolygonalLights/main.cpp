@@ -44,7 +44,10 @@ int WINAPI wWinMain(
 	try {
 		Window wnd(hInstance, nCmdShow, WIDTH, HEIGHT, window_callback);
 		Graphics gr(wnd.GetHandle(), WIDTH, HEIGHT);
-
+		//gr.AddDirLight({ 0, 1, 0 }, { 0, -1, 1 }, 2);
+		//gr.AddSpotLight({ 2, 1, 0 }, { 1, 1, 0 }, {-1, -1, 0}, 1, 0.5f, 0.5f);
+		//gr.AddPointLight({ 2, 1, 1 }, {1, 1, 0}, 1);
+		gr.AddRectLight({ 1, 1, 0 }, { 2, 1, 0 }, 1, 1, 0, 0, 1);
 
 		while (true) {
 
@@ -57,6 +60,8 @@ int WINAPI wWinMain(
 				if (Keyboard::IsPressed('A')) cameraPosition.x -= 0.1f;
 				if (Keyboard::IsPressed('S')) cameraPosition.y -= 0.1f;
 				if (Keyboard::IsPressed('D')) cameraPosition.x += 0.1f;
+
+				gr.GetRectLight(0)->Params.z += 0.001f;
 			}
 
 			// Render

@@ -9,6 +9,8 @@
 #include <exception>
 #include <Windows.h>
 #include <vector>
+#include "DDSTextureLoader2.h"
+#include <fstream>
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
@@ -52,11 +54,20 @@ struct SpotLight {
 	dx::XMFLOAT4 Position;
 	dx::XMFLOAT4 Direction;
 	dx::XMFLOAT4 Color;
-	dx::XMFLOAT4 InnerCone;
-	dx::XMFLOAT4 OuterCone;
+	dx::XMFLOAT4 Cone;
+};
+
+struct RectLight {
+	dx::XMFLOAT4 Position;
+	dx::XMFLOAT4 Params; // Width, Height, RotY, RotZ
+	dx::XMFLOAT4 Color;
 };
 
 class Graphics {
+private:
+	class PSConstantBuffer;
+	class VSConstantBuffer;
+
 public:
 	Graphics(HWND hWnd, FLOAT width, FLOAT height);
 	void Clear(const FLOAT colorRGBA[4]);
@@ -74,9 +85,122 @@ public:
 	template<class V>
 	void FillCube(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
 
-
 	template<class V>
 	void FillFloor(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
+
+	void AddPointLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, float intensity) {
+		if (psConstantBuffer.lightCounts.x >= LIGHT_BUFFER_SIZE)
+			return;
+
+		int index = psConstantBuffer.lightCounts.x++;
+		PointLight& light = psConstantBuffer.pointLights[index];
+		light.Position = {
+			position.x,
+			position.y,
+			position.z,
+			1
+		};
+		light.Color = {
+			color.x,
+			color.y,
+			color.z,
+			intensity
+		};
+	}
+
+	void AddSpotLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, dx::XMFLOAT3 direction, float intensity, float innerCone, float outerCone) {
+		if (psConstantBuffer.lightCounts.y >= LIGHT_BUFFER_SIZE)
+			return;
+
+		int index = psConstantBuffer.lightCounts.y++;
+		SpotLight& light = psConstantBuffer.spotLights[index];
+
+		light.Position = {
+			position.x,
+			position.y,
+			position.z,
+			1
+		};
+
+		light.Color = {
+			color.x,
+			color.y,
+			color.z,
+			intensity
+		};
+
+		light.Cone = {
+			innerCone,
+			outerCone,
+			0, 0
+		};
+
+		light.Direction = {
+			direction.x,
+			direction.y,
+			direction.z,
+			1
+		};
+	}
+
+	void AddDirLight(dx::XMFLOAT3 color, dx::XMFLOAT3 direction, float intensity) {
+		if (psConstantBuffer.lightCounts.z >= LIGHT_BUFFER_SIZE)
+			return;
+
+		int index = psConstantBuffer.lightCounts.z++;
+		DirLight& light = psConstantBuffer.dirLights[index];
+
+		light.Color = {
+			color.x,
+			color.y,
+			color.z,
+			intensity
+		};
+
+		light.Direction = {
+			direction.x,
+			direction.y,
+			direction.z,
+			1
+		};
+	}
+
+	void AddRectLight(dx::XMFLOAT3 color, dx::XMFLOAT3 position, float width, float height, float rotationX, float rotationY, float intensity) {
+		if (psConstantBuffer.lightCounts.w >= LIGHT_BUFFER_SIZE)
+			return;
+
+		int index = psConstantBuffer.lightCounts.w++;
+		RectLight& light = psConstantBuffer.rectLights[index];
+
+		light.Color = {
+			color.x,
+			color.y,
+			color.z,
+			intensity
+		};
+
+		light.Position = {
+			position.x,
+			position.y,
+			position.z,
+			1
+		};
+
+		light.Params = {
+			width,
+			height,
+			rotationX,
+			rotationY
+		};
+	}
+
+	RectLight* GetRectLight(int index) {
+		if (index >= psConstantBuffer.lightCounts.w)
+			return nullptr;
+		
+		return &psConstantBuffer.rectLights[index];
+	}
+
 private:
 	struct VSConstantBuffer {
 		dx::XMMATRIX modelToWorld;
@@ -86,11 +210,12 @@ private:
 	};
 
 	struct PSConstantBuffer {
-		dx::XMFLOAT4 viewPos;
-		dx::XMINT4 lightCounts = { 0, 0, 0, 0 };
-		PointLight pointLights[LIGHT_BUFFER_SIZE];
-		SpotLight spotLights[LIGHT_BUFFER_SIZE];
-		DirLight dirLights[LIGHT_BUFFER_SIZE];
+		dx::XMFLOAT4 viewPos = { 0, 0, 0, 1 };
+		dx::XMINT4 lightCounts = { 0, 0, 0, 0 }; // point, spot, dir, rect
+		PointLight pointLights[LIGHT_BUFFER_SIZE] = {};
+		SpotLight spotLights[LIGHT_BUFFER_SIZE] = {};
+		DirLight dirLights[LIGHT_BUFFER_SIZE] = {};
+		RectLight rectLights[LIGHT_BUFFER_SIZE] = {};
 	};
 
 
@@ -100,6 +225,12 @@ private:
 	ComPtr<ID3D11RenderTargetView> _pRTView;
 	ComPtr<ID3D11Buffer> _pVSConstantBuffer;
 	ComPtr<ID3D11Buffer> _pPSConstantBuffer;
+	ComPtr<ID3D11Resource> _pLTCMatTexture;
+	ComPtr<ID3D11ShaderResourceView> _pLTCMatTextureView;
+	ComPtr<ID3D11Resource> _pLTCAmpTexture;
+	ComPtr<ID3D11ShaderResourceView> _pLTCAmpTextureView;
+	ComPtr<ID3D11SamplerState> _pSampler;
+
 	PSConstantBuffer psConstantBuffer;
 	VSConstantBuffer vsConstantBuffer;
 	FLOAT _width;
@@ -320,12 +451,12 @@ void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer
 
 
 	const unsigned short indices[] = {
-		0,1,2,    2,1,3,	
+		0,1,2,    2,1,3,
 		4,6,5,	  6,7,5,
-		8,9,10,   10,9,11,	
-		12,14,13, 14,15,13, 
-		16,17,18, 18,17,19, 
-		20,22,21, 22,23,21  
+		8,9,10,   10,9,11,
+		12,14,13, 14,15,13,
+		16,17,18, 18,17,19,
+		20,22,21, 22,23,21
 	};
 
 	for (unsigned short index : indices)
@@ -414,32 +545,6 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 		CHECKED(_pDevice->CreatePixelShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pPixelShader), "PShader creation fucked up");
 		_pContext->PSSetShader(pPixelShader.Get(), nullptr, 0u);
 
-		// bind view position to pixel shader
-		psConstantBuffer.viewPos = {0, 0, 0, 1};
-		psConstantBuffer.lightCounts.y = 2;
-		psConstantBuffer.spotLights[0].Color = dx::XMFLOAT4{0, 1, 0, 1};
-		psConstantBuffer.spotLights[0].Position = dx::XMFLOAT4{ 5, 5, 0, 1 };
-		psConstantBuffer.spotLights[0].Direction = dx::XMFLOAT4{ -1, -1, 1, 1};
-		psConstantBuffer.spotLights[0].InnerCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(40.0f)), 0.0f, 0.0f, 0.0f);
-		psConstantBuffer.spotLights[0].OuterCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(45.0f)), 0.0f, 0.0f, 0.0f);
-
-		psConstantBuffer.spotLights[1].Color = dx::XMFLOAT4{ 0, 0, 1, 1 };
-		psConstantBuffer.spotLights[1].Position = dx::XMFLOAT4{ -5, 5, 0, 1 };
-		psConstantBuffer.spotLights[1].Direction = dx::XMFLOAT4{ 1, -1, 1, 1 };
-		psConstantBuffer.spotLights[1].InnerCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(40.0f)), 0.0f, 0.0f, 0.0f);
-		psConstantBuffer.spotLights[1].OuterCone = dx::XMFLOAT4(cos(dx::XMConvertToRadians(45.0f)), 0.0f, 0.0f, 0.0f);
-
-
-		//psConstantBuffer.lightCounts.z = 1;
-		//psConstantBuffer.dirLights[0].Direction = dx::XMFLOAT4(1, 1, 1, 1);
-		//psConstantBuffer.dirLights[0].Color = dx::XMFLOAT4(1, 1, 1, 1);
-		
-		//psConstantBuffer.lightCounts.x = 1;
-		//psConstantBuffer.pointLights[0].Position = dx::XMFLOAT4{ 2, 4, 0, 1 };
-		//psConstantBuffer.pointLights[0].Color = dx::XMFLOAT4{ 1, 1, 1, 1 };
-		//psConstantBuffer.pointLights[1].Position = dx::XMFLOAT4{ -2, 0, 0, 1 };
-		//psConstantBuffer.pointLights[1].Color = dx::XMFLOAT4{ 1, 1, 1, 1 };
-
 		D3D11_BUFFER_DESC bd = {};
 		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 		bd.Usage = D3D11_USAGE_DYNAMIC;
@@ -453,6 +558,21 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 
 		HRESULT hr = _pDevice->CreateBuffer(&bd, &sd, &_pPSConstantBuffer);
 		_pContext->PSSetConstantBuffers(0u, 1u, _pPSConstantBuffer.GetAddressOf());
+
+		hr = DirectX::CreateDDSTextureFromFile(_pDevice.Get(), L"./ltc_mat.dds", true, &_pLTCMatTexture, &_pLTCMatTextureView);
+		_pContext->PSSetShaderResources(0, 1, _pLTCMatTextureView.GetAddressOf());
+
+		hr = DirectX::CreateDDSTextureFromFile(_pDevice.Get(), L"./ltc_amp.dds", true, &_pLTCAmpTexture, &_pLTCAmpTextureView);
+		_pContext->PSSetShaderResources(1, 1, _pLTCAmpTextureView.GetAddressOf());
+
+		D3D11_SAMPLER_DESC samplerDesc = {};
+		samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
+		_pDevice->CreateSamplerState(&samplerDesc, &_pSampler);
+		_pContext->PSSetSamplers(0, 1, _pSampler.GetAddressOf());
 	}
 
 	// create vertex shader
