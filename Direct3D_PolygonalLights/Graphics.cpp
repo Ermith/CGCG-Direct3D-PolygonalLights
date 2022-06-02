@@ -528,9 +528,9 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 
 		D3D11_SAMPLER_DESC samplerDesc = {};
 		samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
-		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
-		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
+		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 
 		_pDevice->CreateSamplerState(&samplerDesc, &_pSampler);
 		_pContext->PSSetSamplers(0, 1, _pSampler.GetAddressOf());

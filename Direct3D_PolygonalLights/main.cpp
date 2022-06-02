@@ -5,9 +5,6 @@
 #define WIDTH 800
 #define HEIGHT 600
 
-dx::XMFLOAT3 cameraPosition = { -4, 1, -4 };
-dx::XMFLOAT3 cameraRollPitchYaw = { 0, 0, 0 };
-dx::XMFLOAT3 forward = { 0, 0, 1 };
 
 class Keyboard {
 private:
@@ -19,6 +16,39 @@ public:
 };
 
 bool Keyboard::keys[255];
+
+
+struct Camera {
+	dx::XMFLOAT3 Position = { -4, 1, -4 };
+	dx::XMFLOAT3 Rotation = { 0, 0, 0 };
+
+	void Update() {
+		dx::XMFLOAT3 cameraMove = { 0, 0, 0 };
+		if (Keyboard::IsPressed('W')) cameraMove.z += 0.1f;
+		if (Keyboard::IsPressed('A')) cameraMove.x -= 0.1f;
+		if (Keyboard::IsPressed('S')) cameraMove.z -= 0.1f;
+		if (Keyboard::IsPressed('D')) cameraMove.x += 0.1f;
+		if (Keyboard::IsPressed('F')) cameraMove.y -= 0.1f;
+		if (Keyboard::IsPressed('R')) cameraMove.y += 0.1f;
+		if (Keyboard::IsPressed('I')) Rotation.x -= 0.01f;
+		if (Keyboard::IsPressed('K')) Rotation.x += 0.01f;
+		if (Keyboard::IsPressed('J')) Rotation.y -= 0.01f;
+		if (Keyboard::IsPressed('L')) Rotation.y += 0.01f;
+
+		dx::XMMATRIX translation = dx::XMMatrixTranslation(cameraMove.x, cameraMove.y, cameraMove.z);
+		dx::XMMATRIX rotation = dx::XMMatrixRotationRollPitchYaw(Rotation.x, Rotation.y, Rotation.z);
+		dx::XMVECTOR movement = dx::XMVector3Transform(
+			dx::XMLoadFloat3(&cameraMove),
+			translation * rotation
+		);
+
+		dx::XMStoreFloat3(&cameraMove, movement);
+		Position.x += cameraMove.x;
+		Position.y += cameraMove.y;
+		Position.z += cameraMove.z;
+	}
+};
+
 
 LRESULT CALLBACK window_callback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	if (uMsg == WM_KEYDOWN) Keyboard::PressKey(wParam);
@@ -32,31 +62,7 @@ LRESULT CALLBACK window_callback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPa
 	return DefWindowProc(hWnd, uMsg, wParam, lParam); // default procedure
 }
 
-void UpdateCamera() {
-	dx::XMFLOAT3 cameraMove = { 0, 0, 0 };
-	if (Keyboard::IsPressed('W')) cameraMove.z += 0.1f;
-	if (Keyboard::IsPressed('A')) cameraMove.x -= 0.1f;
-	if (Keyboard::IsPressed('S')) cameraMove.z -= 0.1f;
-	if (Keyboard::IsPressed('D')) cameraMove.x += 0.1f;
-	if (Keyboard::IsPressed('F')) cameraMove.y -= 0.1f;
-	if (Keyboard::IsPressed('R')) cameraMove.y += 0.1f;
-	if (Keyboard::IsPressed('I')) cameraRollPitchYaw.x -= 0.01f;
-	if (Keyboard::IsPressed('K')) cameraRollPitchYaw.x += 0.01f;
-	if (Keyboard::IsPressed('J')) cameraRollPitchYaw.y -= 0.01f;
-	if (Keyboard::IsPressed('L')) cameraRollPitchYaw.y += 0.01f;
 
-	dx::XMMATRIX translation = dx::XMMatrixTranslation(cameraMove.x, cameraMove.y, cameraMove.z);
-	dx::XMMATRIX rotation = dx::XMMatrixRotationRollPitchYaw(cameraRollPitchYaw.x, cameraRollPitchYaw.y, cameraRollPitchYaw.z);
-	dx::XMVECTOR movement = dx::XMVector3Transform(
-		dx::XMLoadFloat3(&cameraMove),
-		translation * rotation
-	);
-
-	dx::XMStoreFloat3(&cameraMove, movement);
-	cameraPosition.x += cameraMove.x;
-	cameraPosition.y += cameraMove.y;
-	cameraPosition.z += cameraMove.z;
-}
 
 int WINAPI wWinMain(
 	_In_ HINSTANCE hInstance,
@@ -70,13 +76,14 @@ int WINAPI wWinMain(
 	try {
 		Window wnd(hInstance, nCmdShow, WIDTH, HEIGHT, window_callback);
 		Graphics gr(wnd.GetHandle(), WIDTH, HEIGHT);
+		Camera camera;
 
 		// LIGHTS
 		{
 			/*/
 			gr.AddDirLight(
 				{ 1, 1, 1 },   // color
-				{ 0, -1, -2 }, // direction
+				{ 1, -1, -2 }, // direction
 				1			   // intensity
 			);
 			//*/
@@ -101,7 +108,7 @@ int WINAPI wWinMain(
 			/*/
 			gr.AddPointLight(
 				{ 4, 2, 7 }, // position
-				{1, 0, 0},	 // color
+				{0, 1, 1},	 // color
 				4			 // intensity
 			);
 			//*/
@@ -112,7 +119,7 @@ int WINAPI wWinMain(
 				{ 1, 1, 1 },   // color
 				4,			   // intensity
 				1, 1,          // width, height
-				0.0, 0.0	   // rotationX, rotationY
+				0.0, 0.5	   // rotationX, rotationY
 			);
 			//*/
 		}
@@ -128,13 +135,10 @@ int WINAPI wWinMain(
 			
 			// Update
 			{
-				UpdateCamera();
-
+				camera.Update();
+				//gr.GetRectLight(0)->Params.w += 0.001;
 				gr.GetRectLight(0)->Params.z += 0.001;
-				//gr.GetRectLight(0)->Params.w = 0.5;
-				//cubeLocation.z += 0.01;
 				cubeRotation.y += 0.01;
-				//cubeRotation.y = .5f*2*3.14;
 				cubeTransform =
 					dx::XMMatrixRotationRollPitchYaw(cubeRotation.x, cubeRotation.y, cubeRotation.z)
 					* dx::XMMatrixTranslation(cubeLocation.x, cubeLocation.y, cubeLocation.z);
@@ -148,10 +152,10 @@ int WINAPI wWinMain(
 				vector<unsigned short> iBuffer;
 				gr.FillFloor(vBuffer, iBuffer, dx::XMMatrixIdentity());
 				gr.FillCube(vBuffer, iBuffer, cubeTransform);
-				gr.DrawTriangles(vBuffer, iBuffer, cameraPosition, cameraRollPitchYaw);
+				gr.DrawTriangles(vBuffer, iBuffer, camera.Position, camera.Rotation);
+
 				vBuffer.clear();
 				iBuffer.clear();
-
 				gr.SwapBuffers();
 			}
 		}

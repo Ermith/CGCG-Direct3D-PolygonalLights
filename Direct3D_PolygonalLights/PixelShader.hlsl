@@ -5,6 +5,23 @@ static const float LUT_SCALE = (LUT_SIZE - 1.0) / LUT_SIZE;
 static const float LUT_BIAS = 0.5 / LUT_SIZE;
 static const bool TEXTURED = false;
 
+// Structures and buffers
+//=========================
+
+Texture2D ltcMat;
+Texture2D ltcAmp;
+Texture2D lightTexture;
+SamplerState ltcSampler;
+
+struct PSIn {
+	float4 position : SV_POSITION;
+	float4 worldPosition : Position;
+	float3 color : Color;
+	float2 uv : Texture;
+	float3 normal : Normal;
+	unsigned int lightIndex : Index;
+};
+
 struct PointLight {
 	float4 Position;
 	float4 Color;
@@ -28,20 +45,6 @@ struct RectLight {
 	float4 Color;
 };
 
-struct PSIn {
-	float4 position : SV_POSITION;
-	float4 worldPosition : Position;
-	float3 color : Color;
-	float2 uv : Texture;
-	float3 normal : Normal;
-	unsigned int lightIndex : Index;
-};
-
-Texture2D ltcMat;
-Texture2D ltcAmp;
-Texture2D lightTexture;
-SamplerState ltcSampler;
-
 cbuffer CBuf {
 	float4 viewPos;
 	int4 lightCounts; // point, spot, dir, rect
@@ -51,92 +54,8 @@ cbuffer CBuf {
 	RectLight rectLights[LightBufferSize];
 };
 
-float3 CalcDirLight(DirLight light, float3 normal, float3 fragColor, float3 viewDir, float shadow = 0.0, float specularity = 1.0, float exponent = 64) {
-	float3 lightDir = -light.Direction.xyz;
-	float intensity = light.Color.w;
-	float lightColor = light.Color.xyz;
-
-	float NdotH = dot(normal, normalize(lightDir + viewDir));
-	float NdotL = dot(lightDir, normalize(normal));
-	float intensityDiff = saturate(NdotL);
-	float intensitySpec = pow(saturate(NdotH), exponent);
-
-	float3 ambient = float3(1, 1, 1) * 0.1;
-	float3 specular = intensitySpec;
-	float3 diffuse = intensityDiff;
-
-	return float3(fragColor * (ambient + diffuse) + specular * lightColor) * lightColor * intensity;
-}
-
-float3 CalcPointLight(
-	PointLight light,
-	float3 normal,
-	float3 fragPos,
-	float3 fragColor,
-	float3 viewDir,
-	float specularity = 1.0,
-	float exponent = 64,
-	float ambientStr = 0.01
-) {
-	float3 lightColor = light.Color.xyz;
-	float lightIntensity = light.Color.w;
-	float3 lightDir = light.Position.xyz - fragPos;
-
-	float distance = length(lightDir);
-	float distanceSq = distance * distance;
-	lightDir = lightDir / distance;
-
-
-	float NdotH = dot(normal, normalize(lightDir + viewDir));
-	float NdotL = dot(lightDir, normal);
-	float intensityDiff = saturate(NdotL) * 5;
-	float intensitySpec = pow(saturate(NdotH), exponent);
-
-	float3 ambient = float3(1, 1, 1) * ambientStr;
-	float specular = intensitySpec / distanceSq;
-	float diffuse = intensityDiff / distanceSq;
-
-	return ((ambient + diffuse) * fragColor + specular * lightColor) * lightColor * lightIntensity;
-}
-
-float3 CalcSpotLight(SpotLight light,
-	float3 normal,
-	float3 fragPos,
-	float3 fragColor,
-	float3 viewDir,
-	float specularity = 1.0,
-	float exponent = 64,
-	float ambientStr = 0.01)
-{
-	float innerCone = light.Cone.x;
-	float outerCone = light.Cone.y;
-	float3 lightColor = light.Color.xyz;
-	float lightIntensity = light.Color.w;
-
-	float3 lightDir = light.Position.xyz - fragPos;
-	float distance = length(lightDir);
-	float distanceSq = distance * distance;
-	lightDir = lightDir / distance;
-
-	float NdotH = dot(normal, normalize(lightDir + viewDir));
-	float NdotL = dot(lightDir, normal);
-	float intensityDiff = saturate(NdotL);
-	float intensitySpec = pow(saturate(NdotH), exponent);
-
-	float3 ambient = float3(1, 1, 1) * ambientStr;
-	float specular = intensitySpec / distanceSq;
-	float diffuse = intensityDiff / distanceSq;
-
-	float theta = dot(lightDir, normalize(-light.Direction.xyz));
-	float epsilon = outerCone.x - innerCone.x;
-	float intensity = clamp((theta - outerCone.x) / epsilon, 0.0, 1.0);
-
-	diffuse *= intensity;
-	specular *= intensity;
-
-	return ((ambient + diffuse) * fragColor + specular * lightColor) * lightColor * lightIntensity;
-	
-}
+// LTC FUNCTIONS
+//=========================
 
 float3 rotation_y(float3 v, float a)
 {
@@ -160,7 +79,6 @@ float3 rotation_yz(float3 v, float ay, float az)
 {
 	return rotation_z(rotation_y(v, ay), az);
 }
-
 
 float IntegrateEdge(float3 v1, float3 v2) {
 	float cosTheta = dot(v1, v2);
@@ -306,7 +224,14 @@ float3 FetchDiffuseFilteredTexture(float3 p1_, float3 p2_, float3 p3_, float3 p4
 	return lightTexture.SampleLevel(ltcSampler, float2(0.125, 0.125) + 0.75 * Puv, log(2048.0 * d) / log(3.0)).xyz;
 }
 
-float3 LTCEvaluate(RectLight light, float3 fragPos, float3 viewDir, float3 normal, float3 points[4], float3x3 Minv) {
+float3 LTCEvaluate(
+	RectLight light,
+	float3 fragPos,
+	float3 viewDir,
+	float3 normal,
+	float3 points[4],
+	float3x3 Minv
+) {
 	float3 T1, T2;
 	T1 = normalize(viewDir - normal * dot(viewDir, normal));
 	T2 = cross(normal, T1);
@@ -351,6 +276,105 @@ float3 LTCEvaluate(RectLight light, float3 fragPos, float3 viewDir, float3 norma
 
 	sum = abs(sum);
 	return float3(sum, sum, sum) * texturedCol;
+}
+
+// LIGHT CALCULATIONS
+//=========================
+
+float3 CalcDirLight(
+	DirLight light,
+	float3 normal,
+	float3 fragColor,
+	float3 viewDir,
+	float shadow = 0.0,
+	float specularity = 1.0,
+	float exponent = 64
+) {
+	float3 lightDir = -light.Direction.xyz;
+	float intensity = light.Color.w;
+	float lightColor = light.Color.xyz;
+
+	float NdotH = dot(normal, normalize(lightDir + viewDir));
+	float NdotL = dot(lightDir, normalize(normal));
+	float intensityDiff = saturate(NdotL);
+	float intensitySpec = pow(saturate(NdotH), exponent);
+
+	float3 ambient = float3(1, 1, 1) * 0.01;
+	float3 specular = intensitySpec;
+	float3 diffuse = intensityDiff;
+
+	return float3(fragColor * (ambient + diffuse) + specular * lightColor) * lightColor * intensity;
+}
+
+float3 CalcPointLight(
+	PointLight light,
+	float3 normal,
+	float3 fragPos,
+	float3 fragColor,
+	float3 viewDir,
+	float specularity = 1.0,
+	float exponent = 64,
+	float ambientStr = 0.01
+) {
+	float3 lightColor = light.Color.xyz;
+	float lightIntensity = light.Color.w;
+	float3 lightDir = light.Position.xyz - fragPos;
+
+	float distance = length(lightDir);
+	float distanceSq = distance * distance;
+	lightDir = lightDir / distance;
+
+
+	float NdotH = dot(normal, normalize(lightDir + viewDir));
+	float NdotL = dot(lightDir, normal);
+	float intensityDiff = saturate(NdotL) * 5;
+	float intensitySpec = pow(saturate(NdotH), exponent);
+
+	float3 ambient = float3(1, 1, 1) * ambientStr;
+	float specular = intensitySpec / distanceSq;
+	float diffuse = intensityDiff / distanceSq;
+
+	return ((ambient + diffuse) * fragColor + specular * lightColor) * lightColor * lightIntensity;
+}
+
+float3 CalcSpotLight(SpotLight light,
+	float3 normal,
+	float3 fragPos,
+	float3 fragColor,
+	float3 viewDir,
+	float specularity = 1.0,
+	float exponent = 64,
+	float ambientStr = 0.01
+)
+{
+	float innerCone = light.Cone.x;
+	float outerCone = light.Cone.y;
+	float3 lightColor = light.Color.xyz;
+	float lightIntensity = light.Color.w;
+
+	float3 lightDir = light.Position.xyz - fragPos;
+	float distance = length(lightDir);
+	float distanceSq = distance * distance;
+	lightDir = lightDir / distance;
+
+	float NdotH = dot(normal, normalize(lightDir + viewDir));
+	float NdotL = dot(lightDir, normal);
+	float intensityDiff = saturate(NdotL);
+	float intensitySpec = pow(saturate(NdotH), exponent);
+
+	float3 ambient = float3(1, 1, 1) * ambientStr;
+	float specular = intensitySpec / distanceSq;
+	float diffuse = intensityDiff / distanceSq;
+
+	float theta = dot(lightDir, normalize(-light.Direction.xyz));
+	float epsilon = outerCone.x - innerCone.x;
+	float intensity = clamp((theta - outerCone.x) / epsilon, 0.0, 1.0);
+
+	diffuse *= intensity;
+	specular *= intensity;
+
+	return ((ambient + diffuse) * fragColor + specular * lightColor) * lightColor * lightIntensity;
+	
 }
 
 float3 CalcRectLight(
@@ -411,6 +435,7 @@ float3 CalcRectLight(
 	col += ambient * fragColor * lightColor;
 	return col;
 }
+
 
 float4 main(PSIn input) : SV_TARGET{
 
