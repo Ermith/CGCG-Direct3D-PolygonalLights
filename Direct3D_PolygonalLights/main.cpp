@@ -9,7 +9,6 @@ dx::XMFLOAT3 cameraPosition = { -4, 1, -4 };
 dx::XMFLOAT3 cameraRollPitchYaw = { 0, 0, 0 };
 dx::XMFLOAT3 forward = { 0, 0, 1 };
 
-
 class Keyboard {
 private:
 	static bool keys[255];
@@ -73,7 +72,6 @@ int WINAPI wWinMain(
 		Graphics gr(wnd.GetHandle(), WIDTH, HEIGHT);
 
 		// LIGHTS
-		// =====================================
 		{
 			/*/
 			gr.AddDirLight(

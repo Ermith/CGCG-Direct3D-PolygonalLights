@@ -150,8 +150,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="DDSTextureLoader.cpp" />
-    <ClCompile Include="DDSTextureLoader2.cpp" />
+    <ClCompile Include="Graphics.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">
@@ -179,7 +180,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DDSTextureLoader.h" />
-    <ClInclude Include="DDSTextureLoader2.h" />
     <ClInclude Include="Graphics.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
