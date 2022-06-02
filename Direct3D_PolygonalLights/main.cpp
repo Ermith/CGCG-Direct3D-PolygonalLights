@@ -48,7 +48,7 @@ int WINAPI wWinMain(
 		//gr.AddSpotLight({ 2, 1, 0 }, { 1, 1, 0 }, {-1, -1, 0}, 1, 0.5f, 0.5f);
 		//gr.AddPointLight({ 2, 1, 1 }, {1, 1, 0}, 1);
 		gr.AddRectLight(
-			{ 0, 1, 1 }, { 4, 1, 4 }, 1, 1, 0.0, 0.0, 4);
+			{ 1, 1, 1 }, { 4, 0.3, 5 }, 1, 1, 0.0, 0.0, 4);
 
 		dx::XMFLOAT3 cubeLocation = { 0, 0, 4 };
 		dx::XMFLOAT3 cubeRotation = { 0, 0, 0 };
@@ -66,7 +66,8 @@ int WINAPI wWinMain(
 				if (Keyboard::IsPressed('S')) cameraPosition.y -= 0.1f;
 				if (Keyboard::IsPressed('D')) cameraPosition.x += 0.1f;
 
-				gr.GetRectLight(0)->Params.z += 0.001f;
+				gr.GetRectLight(0)->Params.z += 0.001;
+				gr.GetRectLight(0)->Params.w = 0.5;
 				//cubeLocation.z += 0.01;
 				cubeRotation.y += 0.01;
 				//cubeRotation.y = .5f*2*3.14;

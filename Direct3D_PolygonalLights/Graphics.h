@@ -38,6 +38,9 @@ struct Vertex {
 	float g;
 	float b;
 
+	float u;
+	float v;
+
 	float nx;
 	float ny;
 	float nz;
@@ -435,40 +438,40 @@ void Graphics::FillCube(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer
 	float red[3] = { 1.0f, 0.0f, 0.0f };
 
 	// BACK - green
-	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f, _objectIndex });
-	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f, _objectIndex });
-	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f , _objectIndex});
-	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f,  0.0f, 0.0f, 1.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	0.0f, 1.0f, 0.0f, 0,0, 0.0f, 0.0f, 1.0f, _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 0.0f,  0,0, 0.0f, 0.0f, 1.0f, _objectIndex });
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f, 0,0, 0.0f, 0.0f, 1.0f , _objectIndex});
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 0.0f, 0,0, 0.0f, 0.0f, 1.0f , _objectIndex});
 
 	// LEFT - magenta
-	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f , _objectIndex });
-	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f , _objectIndex});
-	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f , _objectIndex});
-	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	1.0f, 0.0f, 1.0f,   -1.0f, 0.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 0,0,   -1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 1.0f,  0,0,  -1.0f, 0.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 0.0f, 1.0f,  0,0,  -1.0f, 0.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	1.0f, 0.0f, 1.0f,  0,0,  -1.0f, 0.0f, 0.0f , _objectIndex});
 
 	// RIGHT - cyan
-	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f , _objectIndex });
-	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f , _objectIndex });
-	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f , _objectIndex });
-	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 1.0f,   1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	0.0f, 1.0f, 1.0f, 0,0,  1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 1.0f, 1.0f, 0,0,  1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  0.0f, 1.0f, 1.0f,  0,0, 1.0f, 0.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 1.0f, 1.0f, 0,0,  1.0f, 0.0f, 0.0f , _objectIndex });
 
 	// TOP - blue
-	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f , _objectIndex});
-	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f , _objectIndex});
-	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f , _objectIndex});
-	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  0.0f, 0.0f, 1.0f, 0,0,  0.0f, 1.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	0.0f, 0.0f, 1.0f, 0,0,  0.0f, 1.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ -1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0,0,  0.0f, 1.0f, 0.0f , _objectIndex});
+	vBuffer.push_back({ 1.0f,1.0f, 1.0f,	0.0f, 0.0f, 1.0f, 0,0,  0.0f, 1.0f, 0.0f , _objectIndex});
 
 	// BOTTOM - yellow
-	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f , _objectIndex });
-	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f , _objectIndex });
-	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f , _objectIndex });
-	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  1.0f, 1.0f, 0.0f,   0.0f, -1.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,0,0,   0.0f, -1.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 1.0f, 0.0f, 0,0,  0.0f, -1.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ -1.0f,-1.0f, 1.0f,	1.0f, 1.0f, 0.0f, 0,0,  0.0f, -1.0f, 0.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, 1.0f,  1.0f, 1.0f, 0.0f,  0,0, 0.0f, -1.0f, 0.0f , _objectIndex });
 
 	// FRONT - red
-	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f , _objectIndex });
-	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f , _objectIndex });
-	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f , _objectIndex });
-	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	1.0f, 0.0f, 0.0f,  0.0f, 0.0f, -1.0f , _objectIndex });
+	vBuffer.push_back({ -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,0,0,  0.0f, 0.0f, -1.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,-1.0f, -1.0f,	1.0f, 0.0f, 0.0f, 0,0, 0.0f, 0.0f, -1.0f , _objectIndex });
+	vBuffer.push_back({ -1.0f,1.0f, -1.0f,  1.0f, 0.0f, 0.0f, 0,0, 0.0f, 0.0f, -1.0f , _objectIndex });
+	vBuffer.push_back({ 1.0f,1.0f, -1.0f,	1.0f, 0.0f, 0.0f, 0,0, 0.0f, 0.0f, -1.0f , _objectIndex });
 
 
 	const unsigned short indices[] = {
@@ -492,10 +495,10 @@ template<>
 void Graphics::FillFloor(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer, dx::XMMATRIX transform) {
 	unsigned short offset = vBuffer.size();
 
-	vBuffer.push_back({ -100.0f, -1.0f, -100.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
-	vBuffer.push_back({ 100.0f,  -1.0f, -100.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
-	vBuffer.push_back({ 100.0f,  -1.0f, 100.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
-	vBuffer.push_back({ -100.0f, -1.0f, 100.0f,	0.5f, 0.5f, 0.5f,  0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ -100.0f, -1.0f, -100.0f,	0.5f, 0.5f, 0.5f, 0,0, 0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ 100.0f,  -1.0f, -100.0f,	0.5f, 0.5f, 0.5f, 0,0, 0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ 100.0f,  -1.0f, 100.0f,		0.5f, 0.5f, 0.5f, 0,0, 0.0f, 1.0f, 0.0f, _objectIndex });
+	vBuffer.push_back({ -100.0f, -1.0f, 100.0f,		0.5f, 0.5f, 0.5f, 0,0, 0.0f, 1.0f, 0.0f, _objectIndex });
 
 
 	const unsigned short indices[] = {
@@ -514,11 +517,10 @@ template<>
 void Graphics::FillQuadLight(vector<Vertex>& vBuffer, vector<unsigned short>& iBuffer, RectLight light) {
 	unsigned short offset = vBuffer.size();
 
-	vBuffer.push_back({ -1.0f, -1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z,  .0f, .0f, -1.0f, _objectIndex});
-	vBuffer.push_back({  1.0f, -1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z,  .0f, .0f, -1.0f, _objectIndex });
-	vBuffer.push_back({  1.0f,  1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z,  .0f, .0f, -1.0f, _objectIndex });
-	vBuffer.push_back({ -1.0f,  1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z,  .0f, .0f, -1.0f, _objectIndex });
-
+	vBuffer.push_back({ -1.0f, -1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z, 0,0, .0f, .0f, -1.0f, _objectIndex});
+	vBuffer.push_back({  1.0f, -1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z, 1,0, .0f, .0f, -1.0f, _objectIndex });
+	vBuffer.push_back({  1.0f,  1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z, 1,1, .0f, .0f, -1.0f, _objectIndex });
+	vBuffer.push_back({ -1.0f,  1.0f, .0f,	light.Color.x, light.Color.y, light.Color.z, 0,1, .0f, .0f, -1.0f, _objectIndex });
 
 	const unsigned short indices[] = {
 		0,2,1,    0,3,2,
@@ -530,7 +532,8 @@ void Graphics::FillQuadLight(vector<Vertex>& vBuffer, vector<unsigned short>& iB
 	
 	dx::XMMATRIX transform =
 		dx::XMMatrixScaling(light.Params.x, light.Params.y, 0)
-		* dx::XMMatrixRotationRollPitchYaw(0, light.Params.z * 2 * 3.14, light.Params.w * 2 * 3.14)
+		* dx::XMMatrixRotationY(light.Params.z * 2 * 3.14)
+		* dx::XMMatrixRotationZ(light.Params.w * 2 * 3.14)
 		* dx::XMMatrixTranslation(light.Position.x, light.Position.y, light.Position.z);
 
 	vsConstantBuffer.modelToWorld[_objectIndex] = dx::XMMatrixTranspose(transform);
@@ -650,11 +653,15 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 		hr = DirectX::CreateDDSTextureFromFile(_pDevice.Get(), L"./ltc_amp.dds", true, &_pLTCAmpTexture, &_pLTCAmpTextureView);
 		_pContext->PSSetShaderResources(1, 1, _pLTCAmpTextureView.GetAddressOf());
 
+		hr = DirectX::CreateDDSTextureFromFile(_pDevice.Get(), L"./dataFiltered.dds", true, &_pLTCAmpTexture, &_pLTCAmpTextureView);
+		_pContext->PSSetShaderResources(2, 1, _pLTCAmpTextureView.GetAddressOf());
+
+
 		D3D11_SAMPLER_DESC samplerDesc = {};
 		samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_MIRROR;
+		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_MIRROR;
+		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_MIRROR;
 
 		_pDevice->CreateSamplerState(&samplerDesc, &_pSampler);
 		_pContext->PSSetSamplers(0, 1, _pSampler.GetAddressOf());
@@ -695,8 +702,9 @@ void Graphics::CreateLayoutAndTopology(ComPtr<ID3DBlob> blobBuffer) {
 	{
 		{ "Position",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D11_INPUT_PER_VERTEX_DATA,0 },
 		{ "Color",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12u,D3D11_INPUT_PER_VERTEX_DATA,0 },
-		{ "Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,24u,D3D11_INPUT_PER_VERTEX_DATA,0 },
-		{ "Index",0,DXGI_FORMAT_R32_UINT,0,36u,D3D11_INPUT_PER_VERTEX_DATA,0 }
+		{ "Texture",0,DXGI_FORMAT_R32G32_FLOAT,0,24u,D3D11_INPUT_PER_VERTEX_DATA,0 },
+		{ "Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,32u,D3D11_INPUT_PER_VERTEX_DATA,0 },
+		{ "Index",0,DXGI_FORMAT_R32_UINT,0,44u,D3D11_INPUT_PER_VERTEX_DATA,0 }
 	};
 
 	CHECKED(_pDevice->CreateInputLayout(
