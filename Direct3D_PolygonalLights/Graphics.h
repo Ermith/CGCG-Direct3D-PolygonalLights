@@ -82,7 +82,7 @@ public:
 	void SwapBuffers();
 
 	template<class V>
-	void DrawTriangles(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir);
+	void DrawTriangles(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraRotation);
 
 	template<class V>
 	void FillTriangle(vector<V>& vBuffer, vector<unsigned short>& iBuffer);
@@ -99,7 +99,7 @@ public:
 	template<class V>
 	void FillQuadLight(vector<V>& vBuffer, vector<unsigned short>& iBuffer, RectLight light);
 
-	void AddPointLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, float intensity) {
+	void AddPointLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, float intensity = 1.0f) {
 		if (psConstantBuffer.lightCounts.x >= LIGHT_BUFFER_SIZE)
 			return;
 
@@ -119,7 +119,7 @@ public:
 		};
 	}
 
-	void AddSpotLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, dx::XMFLOAT3 direction, float intensity, float innerCone, float outerCone) {
+	void AddSpotLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, dx::XMFLOAT3 direction, float intensity = 10.0f, float innerCone = 0.7f, float outerCone = .75f) {
 		if (psConstantBuffer.lightCounts.y >= LIGHT_BUFFER_SIZE)
 			return;
 
@@ -154,7 +154,7 @@ public:
 		};
 	}
 
-	void AddDirLight(dx::XMFLOAT3 color, dx::XMFLOAT3 direction, float intensity) {
+	void AddDirLight(dx::XMFLOAT3 color, dx::XMFLOAT3 direction, float intensity = 1.0f) {
 		if (psConstantBuffer.lightCounts.z >= LIGHT_BUFFER_SIZE)
 			return;
 
@@ -176,7 +176,7 @@ public:
 		};
 	}
 
-	void AddRectLight(dx::XMFLOAT3 color, dx::XMFLOAT3 position, float width, float height, float rotationX, float rotationY, float intensity) {
+	void AddRectLight(dx::XMFLOAT3 position, dx::XMFLOAT3 color, float intensity = 1.0f, float width = 1.0f, float height = 1.0f, float rotationX = .0f, float rotationY = .0f) {
 		if (psConstantBuffer.lightCounts.w >= LIGHT_BUFFER_SIZE)
 			return;
 
@@ -205,10 +205,28 @@ public:
 		};
 	}
 
+	PointLight* GetPointLight(int index) {
+		if (index >= psConstantBuffer.lightCounts.x)
+			return nullptr;
+		
+		return &psConstantBuffer.pointLights[index];
+	}
+	SpotLight* GetSpotLight(int index) {
+		if (index >= psConstantBuffer.lightCounts.y)
+			return nullptr;
+
+		return &psConstantBuffer.spotLights[index];
+	}
+	DirLight* GetDirLight(int index) {
+		if (index >= psConstantBuffer.lightCounts.z)
+			return nullptr;
+
+		return &psConstantBuffer.dirLights[index];
+	}
 	RectLight* GetRectLight(int index) {
 		if (index >= psConstantBuffer.lightCounts.w)
 			return nullptr;
-		
+
 		return &psConstantBuffer.rectLights[index];
 	}
 
@@ -291,7 +309,7 @@ void Graphics::SwapBuffers() {
 }
 
 template<class V>
-void Graphics::DrawTriangles(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraDir) {
+void Graphics::DrawTriangles(vector<V>& vBuffer, vector<unsigned short>& iBuffer, dx::XMFLOAT3 cameraPos, dx::XMFLOAT3 cameraRotation) {
 
 	for (int i = 0; i < psConstantBuffer.lightCounts.w; i++) {
 		RectLight* l = GetRectLight(i);
@@ -347,9 +365,17 @@ void Graphics::DrawTriangles(vector<V>& vBuffer, vector<unsigned short>& iBuffer
 		//vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(dx::XMMatrixTranslation(0, 0, 4));
 		//vsConstantBuffer.normalTransform = dx::XMMatrixTranspose(dx::XMMatrixInverse(nullptr, vsConstantBuffer.modelToWorld[]));
 		vsConstantBuffer.projection = dx::XMMatrixTranspose(dx::XMMatrixPerspectiveLH(1.0f, _height / _width, 0.5f, 500.0f));
+		dx::XMFLOAT3 forward(0, 0, 1);
+		dx::XMFLOAT3 pos(0, 0, 0);
+		dx::XMMATRIX translation;
+
+		dx::XMVECTOR cameraDir = dx::XMVector3Transform(
+			dx::XMLoadFloat3(&forward),
+			dx::XMMatrixRotationRollPitchYaw(cameraRotation.x, cameraRotation.y, cameraRotation.z)
+		);
 		vsConstantBuffer.worldToView = dx::XMMatrixTranspose(dx::XMMatrixLookToLH(
 			dx::XMLoadFloat3(&cameraPos),
-			dx::XMVector3Normalize(dx::XMLoadFloat3(&cameraDir)),
+			dx::XMVector3Normalize(cameraDir),
 			{ 0, 1, 0 }
 		));
 		vsConstantBuffer.objects = _objectIndex;
@@ -626,7 +652,7 @@ void Graphics::CreateRenderTargetView() {
 }
 
 void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
-	// create pixel shader
+	// pixel shader
 	{
 		ComPtr<ID3D11PixelShader> pPixelShader;
 		CHECKED(D3DReadFileToBlob(L"PixelShader.cso", &blobBuffer), "Reading PShader fucked up");
@@ -667,17 +693,12 @@ void Graphics::BindShaders(ComPtr<ID3DBlob>& blobBuffer) {
 		_pContext->PSSetSamplers(0, 1, _pSampler.GetAddressOf());
 	}
 
-	// create vertex shader
+	// vertex shader
 	{
 		ComPtr<ID3D11VertexShader> pVertexShader;
 		CHECKED(D3DReadFileToBlob(L"VertexShader.cso", &blobBuffer), "Reading VSHader fucked up");
 		CHECKED(_pDevice->CreateVertexShader(blobBuffer->GetBufferPointer(), blobBuffer->GetBufferSize(), nullptr, &pVertexShader), "VShader creation fucked up");
 		_pContext->VSSetShader(pVertexShader.Get(), nullptr, 0u);
-
-		// bind transformation matrix to vertex shader
-		//vsConstantBuffer.modelToWorld = dx::XMMatrixTranspose(
-		//	dx::XMMatrixScaling(_width / (float)_height, 1.0f, 1.0f)
-		//);
 
 		D3D11_BUFFER_DESC bd = {};
 		bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
